@@ -1,0 +1,83 @@
+import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { useAuth } from "@/context/auth-context";
+import { getPostAuthRoute } from "@/lib/auth-routing";
+
+export function RegisterPage() {
+  const navigate = useNavigate();
+  const { register, getOAuthUrl, isGoogleOAuthEnabled, error, clearError } = useAuth();
+  const [fullName, setFullName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    clearError();
+    setIsSubmitting(true);
+
+    try {
+      const currentUser = await register({ fullName, email, password, role: "TENANT" });
+      navigate(getPostAuthRoute(currentUser));
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  return (
+    <div className="page-shell flex min-h-screen items-center justify-center py-12">
+      <Card className="w-full max-w-xl">
+        <CardHeader>
+          <CardTitle>Create your FlatBuddy account</CardTitle>
+          <CardDescription>Sign up first, then choose whether you are joining as a tenant or landlord.</CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-5">
+          <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
+            <label className="flex flex-col gap-2 text-sm font-medium">
+              Full name
+              <Input value={fullName} onChange={(event) => setFullName(event.target.value)} required />
+            </label>
+            <label className="flex flex-col gap-2 text-sm font-medium">
+              Email
+              <Input value={email} onChange={(event) => setEmail(event.target.value)} type="email" required />
+            </label>
+            <label className="flex flex-col gap-2 text-sm font-medium">
+              Password
+              <Input
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                type="password"
+                required
+              />
+            </label>
+            {error ? <p className="text-sm text-red-600">{error}</p> : null}
+            <Button disabled={isSubmitting} type="submit">
+              {isSubmitting ? "Creating account..." : "Create account"}
+            </Button>
+          </form>
+          <Button
+            onClick={() => (window.location.href = getOAuthUrl())}
+            variant="outline"
+            disabled={!isGoogleOAuthEnabled}
+          >
+            Continue with Google
+          </Button>
+          {!isGoogleOAuthEnabled ? (
+            <p className="text-sm text-muted-foreground">
+              Google OAuth will appear here once your Google client credentials are configured.
+            </p>
+          ) : null}
+          <p className="text-sm text-muted-foreground">
+            Already registered?{" "}
+            <Link className="font-semibold text-primary" to="/login">
+              Login instead
+            </Link>
+          </p>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}

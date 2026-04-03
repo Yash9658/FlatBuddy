@@ -1,0 +1,470 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  TENANT
+  LANDLORD
+  ADMIN
+}
+
+enum AuthProvider {
+  LOCAL
+  GOOGLE
+}
+
+enum OccupationType {
+  STUDENT
+  WORKING_PROFESSIONAL
+  FREELANCER
+  OTHER
+}
+
+enum FoodPreference {
+  VEGETARIAN
+  NON_VEGETARIAN
+  EGGETARIAN
+  FLEXIBLE
+}
+
+enum SmokingPreference {
+  NO
+  OCCASIONAL
+  YES
+  FLEXIBLE
+}
+
+enum DrinkingPreference {
+  NO
+  OCCASIONAL
+  YES
+  FLEXIBLE
+}
+
+enum PropertyType {
+  PRIVATE_ROOM
+  SHARED_ROOM
+  STUDIO
+  FULL_FLAT
+  PG
+}
+
+enum ListingStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  RENTED
+}
+
+enum ConnectionStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+}
+
+enum MessageSenderType {
+  USER
+  LANDLORD
+  SYSTEM
+}
+
+enum VisitRequestStatus {
+  PENDING
+  APPROVED
+  DECLINED
+}
+
+enum SubscriptionPlan {
+  TENANT_PRO
+  LANDLORD_PRO
+}
+
+enum SubscriptionStatus {
+  INCOMPLETE
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  UNPAID
+  PAUSED
+}
+
+enum VerificationStatus {
+  NOT_REQUESTED
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum GroupInvitationStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+}
+
+model User {
+  id                  String              @id @default(cuid())
+  email               String              @unique
+  passwordHash        String?
+  role                UserRole            @default(TENANT)
+  authProvider        AuthProvider        @default(LOCAL)
+  googleId            String?             @unique
+  isEmailVerified     Boolean             @default(false)
+  isProfileComplete   Boolean             @default(false)
+  isSuspended         Boolean             @default(false)
+  suspendedAt         DateTime?
+  suspensionReason    String?
+  landlordVerificationStatus VerificationStatus @default(NOT_REQUESTED)
+  landlordVerificationRequestedAt DateTime?
+  landlordVerifiedAt  DateTime?
+  landlordVerificationNotes String?
+  landlordVerificationDocumentUrl String?
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+  profile             Profile?
+  preference          Preference?
+  ownedProperties     Property[]          @relation("PropertyOwner")
+  refreshTokens       RefreshToken[]
+  sentConnections     ConnectionRequest[] @relation("ConnectionSender")
+  receivedConnections ConnectionRequest[] @relation("ConnectionReceiver")
+  chatMemberships     ChatParticipant[]
+  sentMessages        Message[]
+  savedProperties     SavedProperty[]
+  savedUsers          SavedUser[]         @relation("SavedUserOwner")
+  followers           SavedUser[]         @relation("SavedUserTarget")
+  ownedGroups         Group[]             @relation("GroupOwner")
+  groupMemberships    GroupMember[]
+  sentGroupInvitations GroupInvitation[]  @relation("GroupInvitationSender")
+  receivedGroupInvitations GroupInvitation[] @relation("GroupInvitationReceiver")
+  visitRequests       VisitRequest[]      @relation("VisitRequester")
+  reportsCreated      Report[]            @relation("ReportCreator")
+  reportsAgainst      Report[]            @relation("ReportAgainstUser")
+  subscription        Subscription?
+  groupShortlists     GroupShortlistedProperty[] @relation("GroupShortlistAddedBy")
+  notificationReads   NotificationRead[]
+  userNotifications   UserNotification[]
+}
+
+model Profile {
+  id               String         @id @default(cuid())
+  userId           String         @unique
+  fullName         String
+  age              Int?
+  bio              String?
+  gender           String?
+  occupation       OccupationType @default(WORKING_PROFESSIONAL)
+  collegeOrCompany String?
+  targetCityId     String?
+  currentCity      String?
+  preferredArea    String?
+  budgetMin        Int?
+  budgetMax        Int?
+  moveInDate       DateTime?
+  avatarUrl        String?
+  phone            String?
+  user             User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  targetCity       City?          @relation(fields: [targetCityId], references: [id])
+}
+
+model Preference {
+  id                   String             @id @default(cuid())
+  userId               String             @unique
+  foodPreference       FoodPreference     @default(FLEXIBLE)
+  smokingPreference    SmokingPreference  @default(FLEXIBLE)
+  drinkingPreference   DrinkingPreference @default(FLEXIBLE)
+  cleanlinessLevel     Int                @default(3)
+  sleepSchedule        String?
+  petsFriendly         Boolean            @default(false)
+  genderPreference     String?
+  languagePreferences  String[]
+  interests            String[]
+  occupationPreference OccupationType?
+  user                 User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model City {
+  id                 String              @id @default(cuid())
+  name               String              @unique
+  state              String?
+  slug               String              @unique
+  description        String?
+  imageUrl           String?
+  isFeatured         Boolean             @default(false)
+  createdAt          DateTime            @default(now())
+  profiles           Profile[]
+  properties         Property[]
+  areas              Area[]
+  groups             Group[]
+  connectionRequests ConnectionRequest[]
+}
+
+model Area {
+  id          String   @id @default(cuid())
+  cityId      String
+  name        String
+  averageRent Int?
+  description String?
+  city        City     @relation(fields: [cityId], references: [id], onDelete: Cascade)
+
+  @@unique([cityId, name])
+}
+
+model Property {
+  id               String          @id @default(cuid())
+  ownerId          String
+  cityId           String
+  title            String
+  description      String
+  propertyType     PropertyType
+  addressLine      String
+  areaName         String
+  monthlyRent      Int
+  securityDeposit  Int
+  availableFrom    DateTime
+  availableBeds    Int             @default(1)
+  totalBeds        Int             @default(1)
+  furnished        Boolean         @default(false)
+  amenities        String[]
+  houseRules       String[]
+  preferredTenants String[]
+  latitude         Float?
+  longitude        Float?
+  status           ListingStatus   @default(ACTIVE)
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+  owner            User            @relation("PropertyOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  city             City            @relation(fields: [cityId], references: [id])
+  images           PropertyImage[]
+  savedBy          SavedProperty[]
+  reports          Report[]
+  visitRequests    VisitRequest[]
+  groupShortlists  GroupShortlistedProperty[]
+
+  @@unique([ownerId, title])
+}
+
+model PropertyImage {
+  id         String   @id @default(cuid())
+  propertyId String
+  url        String
+  altText    String?
+  sortOrder  Int      @default(0)
+  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@unique([propertyId, sortOrder])
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model ConnectionRequest {
+  id         String           @id @default(cuid())
+  senderId   String
+  receiverId String
+  cityId     String?
+  message    String?
+  status     ConnectionStatus @default(PENDING)
+  createdAt  DateTime         @default(now())
+  sender     User             @relation("ConnectionSender", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver   User             @relation("ConnectionReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
+  city       City?            @relation(fields: [cityId], references: [id])
+
+  @@unique([senderId, receiverId])
+}
+
+model Chat {
+  id           String            @id @default(cuid())
+  title        String?
+  cityId       String?
+  isGroup      Boolean           @default(false)
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+  participants ChatParticipant[]
+  messages     Message[]
+}
+
+model ChatParticipant {
+  id         String    @id @default(cuid())
+  chatId      String
+  userId      String
+  joinedAt    DateTime  @default(now())
+  lastReadAt  DateTime?
+  chat        Chat      @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([chatId, userId])
+}
+
+model Message {
+  id         String            @id @default(cuid())
+  chatId     String
+  senderId   String?
+  senderType MessageSenderType @default(USER)
+  body       String
+  createdAt  DateTime          @default(now())
+  chat       Chat              @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  sender     User?             @relation(fields: [senderId], references: [id], onDelete: SetNull)
+}
+
+model SavedProperty {
+  id         String   @id @default(cuid())
+  userId     String
+  propertyId String
+  createdAt  DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, propertyId])
+}
+
+model SavedUser {
+  id           String   @id @default(cuid())
+  ownerUserId  String
+  targetUserId String
+  createdAt    DateTime @default(now())
+  owner        User     @relation("SavedUserOwner", fields: [ownerUserId], references: [id], onDelete: Cascade)
+  target       User     @relation("SavedUserTarget", fields: [targetUserId], references: [id], onDelete: Cascade)
+
+  @@unique([ownerUserId, targetUserId])
+}
+
+model Group {
+  id          String        @id @default(cuid())
+  ownerUserId String
+  cityId      String?
+  name        String
+  description String?
+  planningNotes String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  owner       User          @relation("GroupOwner", fields: [ownerUserId], references: [id], onDelete: Cascade)
+  city        City?         @relation(fields: [cityId], references: [id])
+  members     GroupMember[]
+  shortlists  GroupShortlistedProperty[]
+  invitations GroupInvitation[]
+}
+
+model GroupMember {
+  id        String   @id @default(cuid())
+  groupId    String
+  userId     String
+  joinedAt   DateTime @default(now())
+  isLeader   Boolean  @default(false)
+  group      Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, userId])
+}
+
+model GroupShortlistedProperty {
+  id            String   @id @default(cuid())
+  groupId        String
+  propertyId     String
+  addedByUserId  String
+  note           String?
+  createdAt      DateTime @default(now())
+  group          Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  property       Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  addedBy        User     @relation("GroupShortlistAddedBy", fields: [addedByUserId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, propertyId])
+}
+
+model GroupInvitation {
+  id            String                @id @default(cuid())
+  groupId        String
+  inviterUserId  String
+  inviteeUserId  String
+  status         GroupInvitationStatus @default(PENDING)
+  createdAt      DateTime              @default(now())
+  respondedAt    DateTime?
+  group          Group                 @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  inviter        User                  @relation("GroupInvitationSender", fields: [inviterUserId], references: [id], onDelete: Cascade)
+  invitee        User                  @relation("GroupInvitationReceiver", fields: [inviteeUserId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, inviteeUserId])
+  @@index([inviteeUserId, status])
+}
+
+model Report {
+  id             String    @id @default(cuid())
+  reporterId     String
+  reportedUserId String?
+  propertyId     String?
+  reason         String
+  details        String?
+  resolved       Boolean   @default(false)
+  createdAt      DateTime  @default(now())
+  reporter       User      @relation("ReportCreator", fields: [reporterId], references: [id], onDelete: Cascade)
+  reportedUser   User?     @relation("ReportAgainstUser", fields: [reportedUserId], references: [id], onDelete: SetNull)
+  property       Property? @relation(fields: [propertyId], references: [id], onDelete: SetNull)
+}
+
+model VisitRequest {
+  id              String             @id @default(cuid())
+  propertyId       String
+  requesterId      String
+  requestedDate    DateTime
+  note             String?
+  status           VisitRequestStatus @default(PENDING)
+  landlordMessage  String?
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+  property         Property           @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  requester        User               @relation("VisitRequester", fields: [requesterId], references: [id], onDelete: Cascade)
+
+  @@index([propertyId, status])
+}
+
+model Subscription {
+  id                  String             @id @default(cuid())
+  userId              String             @unique
+  plan                SubscriptionPlan
+  status              SubscriptionStatus @default(INCOMPLETE)
+  stripeCustomerId    String?
+  stripeSubscriptionId String            @unique
+  stripePriceId       String?
+  currentPeriodEnd    DateTime?
+  cancelAtPeriodEnd   Boolean            @default(false)
+  canceledAt          DateTime?
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+  user                User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([stripeCustomerId])
+}
+
+model NotificationRead {
+  id              String   @id @default(cuid())
+  userId          String
+  notificationKey String
+  readAt          DateTime @default(now())
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, notificationKey])
+}
+
+model UserNotification {
+  id          String   @id @default(cuid())
+  userId      String
+  kind        String
+  title       String
+  description String
+  href        String
+  createdAt   DateTime @default(now())
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+}

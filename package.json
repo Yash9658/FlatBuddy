@@ -1,0 +1,19 @@
+{
+  "name": "flatbuddy",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": [
+    "client",
+    "server"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace server",
+    "dev:client": "npm run dev --workspace client",
+    "dev:server": "npm run dev --workspace server",
+    "build": "npm run build --workspaces",
+    "lint": "npm run lint --workspaces",
+    "db:generate": "npm run prisma:generate --workspace server",
+    "db:migrate": "npm run prisma:migrate --workspace server",
+    "db:seed": "npm run prisma:seed --workspace server"
+  }
+}
