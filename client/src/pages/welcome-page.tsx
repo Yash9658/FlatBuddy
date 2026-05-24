@@ -1,4 +1,4 @@
-import { Building2, ShieldCheck, UserRound } from "lucide-react";
+import { Building2, UserRound } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -72,7 +72,7 @@ export function WelcomePage() {
         </CardHeader>
       </Card>
 
-      <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
+      <div className="grid gap-6">
         <div className="grid gap-4">
           {selectableRoles.map((item) => (
             <button
@@ -98,33 +98,15 @@ export function WelcomePage() {
           ))}
         </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Admin access</CardTitle>
-            <CardDescription>
-              Admin is not a public signup path. It is assigned manually for moderation and platform operations.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-4">
-            <div className="rounded-2xl border border-border bg-muted/40 p-4 text-sm leading-7 text-muted-foreground">
-              <div className="mb-3 flex items-center gap-3 font-medium text-foreground">
-                <ShieldCheck className="size-4 text-primary" />
-                Admin role is invite-only
-              </div>
-              If someone should manage reports, landlord verification, or moderation, promote that account later from the
-              database or admin tooling.
-            </div>
-            <div className="flex flex-wrap gap-3">
-              <Button onClick={() => void handleContinue()} disabled={isSubmitting}>
-                {isSubmitting ? "Saving..." : "Continue to profile setup"}
-              </Button>
-              <Link className={buttonVariants({ variant: "outline" })} to="/about">
-                Learn about FlatBuddy
-              </Link>
-            </div>
-            {message ? <p className="text-sm text-red-600">{message}</p> : null}
-          </CardContent>
-        </Card>
+        <div className="flex flex-wrap gap-3">
+          <Button onClick={() => void handleContinue()} disabled={isSubmitting}>
+            {isSubmitting ? "Saving..." : "Continue to profile setup"}
+          </Button>
+          <Link className={buttonVariants({ variant: "outline" })} to="/about">
+            Learn about FlatBuddy
+          </Link>
+        </div>
+        {message ? <p className="text-sm text-red-600">{message}</p> : null}
       </div>
     </div>
   );
