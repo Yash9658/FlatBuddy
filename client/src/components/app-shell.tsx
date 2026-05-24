@@ -92,7 +92,6 @@ export function AppShell() {
             </div>
           </div>
           <div className="hidden items-center gap-3 md:flex">
-            <Badge variant="success">Access + Refresh Auth</Badge>
             {user ? (
               <>
                 <Badge variant="outline">{user.role.toLowerCase()}</Badge>
