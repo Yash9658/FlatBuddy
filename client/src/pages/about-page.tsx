@@ -18,16 +18,22 @@ export function AboutPage() {
             title: "Problem",
             description:
               "Students and professionals often find rooms that are either too expensive, poorly matched, or require fast decisions without knowing who they will live with.",
+            content:
+              "The real pain point is not only finding a room, but reducing uncertainty around budget, compatibility, safety, and coordination.",
           },
           {
             title: "Solution",
             description:
               "FlatBuddy combines city discovery, property listings, compatibility-based partner search, and landlord communication in one product flow.",
+            content:
+              "The product joins renter matching, landlord outreach, chat, and planning into one journey instead of splitting them across separate apps.",
           },
           {
             title: "Business potential",
             description:
               "Revenue can come from premium seeker plans, landlord subscriptions, listing boosts, verification fees, and relocation service partnerships.",
+            content:
+              "That gives the platform room to grow from a useful student tool into a multi-sided rental marketplace with repeatable monetization.",
           },
         ].map((block) => (
           <Card key={block.title}>
@@ -35,10 +41,7 @@ export function AboutPage() {
               <CardTitle>{block.title}</CardTitle>
               <CardDescription>{block.description}</CardDescription>
             </CardHeader>
-            <CardContent className="text-sm leading-7 text-muted-foreground">
-              This scaffold is already shaped to support a real startup-style roadmap rather than just a
-              classroom CRUD app.
-            </CardContent>
+            <CardContent className="text-sm leading-7 text-muted-foreground">{block.content}</CardContent>
           </Card>
         ))}
       </div>
