@@ -6,6 +6,7 @@ import { z } from "zod";
 import { env } from "../config/env.js";
 import { getRefreshCookieOptions, refreshCookieName } from "../lib/cookies.js";
 import { hashToken, signAccessToken, signRefreshToken, verifyRefreshToken } from "../lib/jwt.js";
+import { computeProfileCompletion } from "../lib/profile-completion.js";
 import { prisma } from "../lib/prisma.js";
 
 const registerSchema = z.object({
@@ -76,6 +77,33 @@ function buildSuspendedMessage(reason?: string | null) {
   return reason
     ? `This account is suspended. Reason: ${reason}`
     : "This account is suspended. Please contact support or an admin.";
+}
+
+async function syncProfileCompletionIfNeeded(userId: string) {
+  const currentUser = await prisma.user.findUnique({
+    where: { id: userId },
+    select: authUserSelect,
+  });
+
+  if (!currentUser) {
+    return null;
+  }
+
+  const computedCompletion = computeProfileCompletion(
+    currentUser.role,
+    currentUser.profile,
+    currentUser.preference,
+  );
+
+  if (currentUser.isProfileComplete !== computedCompletion) {
+    return prisma.user.update({
+      where: { id: userId },
+      data: { isProfileComplete: computedCompletion },
+      select: authUserSelect,
+    });
+  }
+
+  return currentUser;
 }
 
 export async function register(req: Request, res: Response) {
@@ -202,10 +230,12 @@ export async function refreshSession(req: Request, res: Response) {
     });
 
     const { accessToken, refreshToken } = buildAuthResponse(stored.user);
-    const currentUser = await prisma.user.findUnique({
-      where: { id: stored.user.id },
-      select: authUserSelect,
-    });
+    const currentUser = await syncProfileCompletionIfNeeded(stored.user.id);
+
+    if (!currentUser) {
+      res.clearCookie(refreshCookieName, getRefreshCookieOptions());
+      return res.status(401).json({ message: "User account was not found." });
+    }
 
     await persistRefreshToken(stored.user.id, refreshToken);
     res.cookie(refreshCookieName, refreshToken, getRefreshCookieOptions());
@@ -243,10 +273,7 @@ export async function getMe(req: Request, res: Response) {
     return res.status(401).json({ message: "Authentication required." });
   }
 
-  const user = await prisma.user.findUnique({
-    where: { id: req.auth.userId },
-    select: authUserSelect,
-  });
+  const user = await syncProfileCompletionIfNeeded(req.auth.userId);
 
   if (!user) {
     return res.status(404).json({ message: "User account was not found." });

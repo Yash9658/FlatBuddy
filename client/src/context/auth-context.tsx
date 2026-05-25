@@ -131,7 +131,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
             }
             return;
           } catch (authError) {
-            if (!(authError instanceof ApiError && (authError.status === 401 || authError.status === 403))) {
+            if (!(authError instanceof ApiError && (authError.status === 401 || authError.status === 403 || authError.status === 404))) {
               throw authError;
             }
 
@@ -153,7 +153,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
           setUser(refreshResponse.user);
         }
       } catch (authError) {
-        if (authError instanceof ApiError && (authError.status === 401 || authError.status === 403)) {
+        if (authError instanceof ApiError && (authError.status === 401 || authError.status === 403 || authError.status === 404)) {
           clearSessionState();
           if (!ignore && authError.status === 403) {
             setError(authError.message);

@@ -1,6 +1,7 @@
 import { OccupationType, UserRole, VerificationStatus } from "@prisma/client";
 import type { Request, Response } from "express";
 import { z } from "zod";
+import { computeProfileCompletion } from "../lib/profile-completion.js";
 import { prisma } from "../lib/prisma.js";
 import { buildMatchInsights, calculateCompatibilityScore, getSharedInterests } from "../utils/compatibility.js";
 
@@ -43,32 +44,6 @@ const roleSelectionSchema = z.object({
   role: z.enum([UserRole.TENANT, UserRole.LANDLORD]),
 });
 
-function isLandlordProfileComplete(payload: z.infer<typeof profileSchema>) {
-  return Boolean(payload.fullName.trim() && payload.targetCityId && payload.preferredArea?.trim() && payload.phone?.trim());
-}
-
-function isTenantProfileComplete(
-  profile: {
-    fullName: string;
-    targetCityId?: string | null;
-    budgetMin?: number | null;
-    budgetMax?: number | null;
-  },
-  preference?: {
-    sleepSchedule?: string | null;
-    interests?: string[] | null;
-  } | null,
-) {
-  return Boolean(
-    profile.fullName.trim() &&
-      profile.targetCityId &&
-      profile.budgetMin &&
-      profile.budgetMax &&
-      preference?.sleepSchedule?.trim() &&
-      (preference?.interests?.length ?? 0) > 0,
-  );
-}
-
 export async function updateProfile(req: Request, res: Response) {
   if (!req.auth) {
     return res.status(401).json({ message: "Authentication required." });
@@ -91,10 +66,7 @@ export async function updateProfile(req: Request, res: Response) {
   await prisma.user.update({
     where: { id: req.auth.userId },
     data: {
-      isProfileComplete:
-        req.auth.role === UserRole.LANDLORD
-          ? isLandlordProfileComplete(payload)
-          : isTenantProfileComplete(payload, currentPreference),
+      isProfileComplete: computeProfileCompletion(req.auth.role, payload, currentPreference),
     },
   });
 
@@ -123,9 +95,7 @@ export async function updatePreference(req: Request, res: Response) {
     await prisma.user.update({
       where: { id: req.auth.userId },
       data: {
-        isProfileComplete: currentProfile
-          ? isTenantProfileComplete(currentProfile, preference)
-          : false,
+        isProfileComplete: computeProfileCompletion(req.auth.role, currentProfile, preference),
       },
     });
   }
@@ -140,10 +110,16 @@ export async function updateRoleSelection(req: Request, res: Response) {
 
   const payload = roleSelectionSchema.parse(req.body);
 
+  const [currentProfile, currentPreference] = await Promise.all([
+    prisma.profile.findUnique({ where: { userId: req.auth.userId } }),
+    prisma.preference.findUnique({ where: { userId: req.auth.userId } }),
+  ]);
+
   const updatedUser = await prisma.user.update({
     where: { id: req.auth.userId },
     data: {
       role: payload.role,
+      isProfileComplete: computeProfileCompletion(payload.role, currentProfile, currentPreference),
       landlordVerificationStatus: payload.role === UserRole.LANDLORD ? undefined : VerificationStatus.NOT_REQUESTED,
       landlordVerificationRequestedAt: payload.role === UserRole.LANDLORD ? undefined : null,
       landlordVerifiedAt: payload.role === UserRole.LANDLORD ? undefined : null,
