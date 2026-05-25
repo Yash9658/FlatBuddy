@@ -109,8 +109,8 @@ export function AppShell() {
         </div>
       </header>
 
-      <div className="page-shell flex flex-col gap-8 py-8 lg:flex-row">
-        <aside className="surface-blur rounded-3xl p-4 lg:sticky lg:top-8 lg:h-fit lg:w-72">
+      <div className="page-shell flex flex-col gap-6 py-8 lg:flex-row">
+        <aside className="surface-blur rounded-3xl p-4 lg:sticky lg:top-8 lg:h-fit lg:w-64">
           <nav className="flex flex-col gap-2">
             {navigation.map(({ to, label, icon: Icon }) => (
               <NavLink

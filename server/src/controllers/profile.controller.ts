@@ -43,6 +43,10 @@ const roleSelectionSchema = z.object({
   role: z.enum([UserRole.TENANT, UserRole.LANDLORD]),
 });
 
+function isLandlordProfileComplete(payload: z.infer<typeof profileSchema>) {
+  return Boolean(payload.fullName.trim() && payload.targetCityId && payload.preferredArea?.trim() && payload.phone?.trim());
+}
+
 export async function updateProfile(req: Request, res: Response) {
   if (!req.auth) {
     return res.status(401).json({ message: "Authentication required." });
@@ -61,7 +65,7 @@ export async function updateProfile(req: Request, res: Response) {
 
   await prisma.user.update({
     where: { id: req.auth.userId },
-    data: { isProfileComplete: true },
+    data: { isProfileComplete: req.auth.role === UserRole.LANDLORD ? isLandlordProfileComplete(payload) : true },
   });
 
   return res.json(profile);

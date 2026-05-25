@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Building2, CheckCircle2, ShieldCheck, TrendingUp, UserRound, UsersRound } from "lucide-react";
+import { Building2, CheckCircle2, Circle, ShieldCheck, TrendingUp, UserRound, UsersRound } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -373,6 +373,11 @@ function LandlordProfileView({
   targetCityName,
   user,
 }: LandlordProfileViewProps) {
+  const hasManagedAreas = Boolean(preferredArea.trim());
+  const hasContactNumber = Boolean(phone.trim());
+  const hasPublishedListing = liveListings > 0;
+  const isLandlordProfileReady = Boolean(fullName.trim() && targetCityId && hasManagedAreas && hasContactNumber);
+
   return (
     <div className="grid gap-6 xl:grid-cols-[0.78fr_1.22fr]">
       <Card>
@@ -393,7 +398,9 @@ function LandlordProfileView({
             <div className="flex flex-col gap-2">
               <div className="flex items-center gap-2">
                 <p className="font-semibold">{fullName || user.email}</p>
-                <Badge variant="success">{user.isProfileComplete ? "Profile complete" : "Needs setup"}</Badge>
+                <Badge variant={isLandlordProfileReady ? "success" : "outline"}>
+                  {isLandlordProfileReady ? "Profile complete" : "Needs setup"}
+                </Badge>
               </div>
               <p className="text-sm text-muted-foreground">
                 {collegeOrCompany || "Independent landlord"} · {targetCityName}
@@ -402,13 +409,24 @@ function LandlordProfileView({
           </div>
           <div className="grid gap-3">
             {[
-              preferredArea ? `Operating areas: ${preferredArea}` : "Add the areas you actively manage",
-              phone ? `Contact number saved: ${phone}` : "Save a contact number for faster coordination",
-              liveListings > 0 ? `${liveListings} live listing(s) ready for tenant groups` : "Publish your first listing from the landlord workspace",
+              {
+                done: hasManagedAreas,
+                label: hasManagedAreas ? `Operating areas: ${preferredArea}` : "Add the areas you actively manage",
+              },
+              {
+                done: hasContactNumber,
+                label: hasContactNumber ? `Contact number saved: ${phone}` : "Save a contact number for faster coordination",
+              },
+              {
+                done: hasPublishedListing,
+                label: hasPublishedListing
+                  ? `${liveListings} live listing(s) ready for tenant groups`
+                  : "Publish your first listing from the landlord workspace",
+              },
             ].map((item) => (
-              <div key={item} className="flex items-center gap-3 rounded-2xl bg-muted/50 p-3 text-sm">
-                <CheckCircle2 className="size-4 text-success" />
-                {item}
+              <div key={item.label} className="flex items-center gap-3 rounded-2xl bg-muted/50 p-3 text-sm">
+                {item.done ? <CheckCircle2 className="size-4 text-success" /> : <Circle className="size-4 text-muted-foreground" />}
+                {item.label}
               </div>
             ))}
           </div>

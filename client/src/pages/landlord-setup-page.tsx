@@ -65,6 +65,10 @@ export function LandlordSetupPage() {
     setMessage(null);
 
     try {
+      if (!fullName.trim() || !targetCityId || !preferredArea.trim() || !phone.trim()) {
+        throw new Error("Add full name, primary listing city, preferred area, and phone number before continuing.");
+      }
+
       await apiFetch("/profile", {
         method: "PUT",
         token: accessToken,
@@ -110,7 +114,7 @@ export function LandlordSetupPage() {
         </CardHeader>
       </Card>
 
-      <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
+      <div className="grid gap-6 xl:grid-cols-[1.22fr_0.78fr]">
         <div className="grid gap-6">
           <Card>
             <CardHeader>
