@@ -47,6 +47,28 @@ function isLandlordProfileComplete(payload: z.infer<typeof profileSchema>) {
   return Boolean(payload.fullName.trim() && payload.targetCityId && payload.preferredArea?.trim() && payload.phone?.trim());
 }
 
+function isTenantProfileComplete(
+  profile: {
+    fullName: string;
+    targetCityId?: string | null;
+    budgetMin?: number | null;
+    budgetMax?: number | null;
+  },
+  preference?: {
+    sleepSchedule?: string | null;
+    interests?: string[] | null;
+  } | null,
+) {
+  return Boolean(
+    profile.fullName.trim() &&
+      profile.targetCityId &&
+      profile.budgetMin &&
+      profile.budgetMax &&
+      preference?.sleepSchedule?.trim() &&
+      (preference?.interests?.length ?? 0) > 0,
+  );
+}
+
 export async function updateProfile(req: Request, res: Response) {
   if (!req.auth) {
     return res.status(401).json({ message: "Authentication required." });
@@ -63,9 +85,17 @@ export async function updateProfile(req: Request, res: Response) {
     },
   });
 
+  const currentPreference =
+    req.auth.role === UserRole.TENANT ? await prisma.preference.findUnique({ where: { userId: req.auth.userId } }) : null;
+
   await prisma.user.update({
     where: { id: req.auth.userId },
-    data: { isProfileComplete: req.auth.role === UserRole.LANDLORD ? isLandlordProfileComplete(payload) : true },
+    data: {
+      isProfileComplete:
+        req.auth.role === UserRole.LANDLORD
+          ? isLandlordProfileComplete(payload)
+          : isTenantProfileComplete(payload, currentPreference),
+    },
   });
 
   return res.json(profile);
@@ -86,6 +116,19 @@ export async function updatePreference(req: Request, res: Response) {
       userId: req.auth.userId,
     },
   });
+
+  if (req.auth.role === UserRole.TENANT) {
+    const currentProfile = await prisma.profile.findUnique({ where: { userId: req.auth.userId } });
+
+    await prisma.user.update({
+      where: { id: req.auth.userId },
+      data: {
+        isProfileComplete: currentProfile
+          ? isTenantProfileComplete(currentProfile, preference)
+          : false,
+      },
+    });
+  }
 
   return res.json(preference);
 }
