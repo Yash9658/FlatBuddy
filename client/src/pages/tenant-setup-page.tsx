@@ -94,6 +94,10 @@ export function TenantSetupPage() {
     setMessage(null);
 
     try {
+      if (!fullName.trim() || !targetCityId || !budgetMin || !budgetMax || !sleepSchedule.trim() || splitCsv(interests).length === 0) {
+        throw new Error("Add full name, target city, budget range, sleep schedule, and at least one interest before continuing.");
+      }
+
       await apiFetch("/profile", {
         method: "PUT",
         token: accessToken,

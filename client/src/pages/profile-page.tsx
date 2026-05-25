@@ -887,6 +887,11 @@ function TenantProfileView({
   targetCityName,
   user,
 }: TenantProfileViewProps) {
+  const hasBudgetRange = Boolean(budgetMin && budgetMax);
+  const hasSleepSchedule = Boolean(sleepSchedule.trim());
+  const savedInterestsCount = splitCsv(interests).length;
+  const isTenantProfileReady = Boolean(fullName.trim() && targetCityId && hasBudgetRange && hasSleepSchedule && savedInterestsCount > 0);
+
   return (
     <div className="grid gap-6 xl:grid-cols-[0.75fr_1.25fr]">
       <Card>
@@ -905,7 +910,9 @@ function TenantProfileView({
             <div className="flex flex-col gap-2">
               <div className="flex items-center gap-2">
                 <p className="font-semibold">{fullName || user.email}</p>
-                <Badge variant="success">{user.isProfileComplete ? "Profile complete" : "Needs setup"}</Badge>
+                <Badge variant={isTenantProfileReady ? "success" : "outline"}>
+                  {isTenantProfileReady ? "Profile complete" : "Needs setup"}
+                </Badge>
               </div>
               <p className="text-sm text-muted-foreground">
                 {formatLabel(occupation)} · {targetCityName}
@@ -914,13 +921,22 @@ function TenantProfileView({
           </div>
           <div className="grid gap-3">
             {[
-              budgetMin && budgetMax ? `Budget range Rs. ${budgetMin} - Rs. ${budgetMax}` : "Set your budget range",
-              sleepSchedule || "Set a sleep schedule preference",
-              splitCsv(interests).length > 0 ? `${splitCsv(interests).length} interest tags saved` : "Add a few interests for stronger matching",
+              {
+                done: hasBudgetRange,
+                label: hasBudgetRange ? `Budget range Rs. ${budgetMin} - Rs. ${budgetMax}` : "Set your budget range",
+              },
+              {
+                done: hasSleepSchedule,
+                label: hasSleepSchedule ? sleepSchedule : "Set a sleep schedule preference",
+              },
+              {
+                done: savedInterestsCount > 0,
+                label: savedInterestsCount > 0 ? `${savedInterestsCount} interest tags saved` : "Add a few interests for stronger matching",
+              },
             ].map((item) => (
-              <div key={item} className="flex items-center gap-3 rounded-2xl bg-muted/50 p-3 text-sm">
-                <CheckCircle2 className="size-4 text-success" />
-                {item}
+              <div key={item.label} className="flex items-center gap-3 rounded-2xl bg-muted/50 p-3 text-sm">
+                {item.done ? <CheckCircle2 className="size-4 text-success" /> : <Circle className="size-4 text-muted-foreground" />}
+                {item.label}
               </div>
             ))}
           </div>
