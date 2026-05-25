@@ -192,53 +192,73 @@ export function AuthProvider({ children }: PropsWithChildren) {
       },
       clearError: () => setError(null),
       login: async (email, password) => {
-        const response = await apiFetch<{ accessToken: string; user: AuthUser }>("/auth/login", {
-          method: "POST",
-          body: JSON.stringify({ email, password }),
-        });
+        try {
+          const response = await apiFetch<{ accessToken: string; user: AuthUser }>("/auth/login", {
+            method: "POST",
+            body: JSON.stringify({ email, password }),
+          });
 
-        sessionStorage.setItem(storageKey, response.accessToken);
-        setAccessToken(response.accessToken);
-        const currentUser = await loadCurrentUser(response.accessToken);
-        setUser(currentUser);
-        setError(null);
-        return currentUser;
+          sessionStorage.setItem(storageKey, response.accessToken);
+          setAccessToken(response.accessToken);
+          const currentUser = await loadCurrentUser(response.accessToken);
+          setUser(currentUser);
+          setError(null);
+          return currentUser;
+        } catch (authError) {
+          setError(authError instanceof Error ? authError.message : "Unable to login.");
+          throw authError;
+        }
       },
       register: async (payload) => {
-        const response = await apiFetch<{ accessToken: string; user: AuthUser }>("/auth/register", {
-          method: "POST",
-          body: JSON.stringify(payload),
-        });
+        try {
+          const response = await apiFetch<{ accessToken: string; user: AuthUser }>("/auth/register", {
+            method: "POST",
+            body: JSON.stringify(payload),
+          });
 
-        sessionStorage.setItem(storageKey, response.accessToken);
-        setAccessToken(response.accessToken);
-        const currentUser = await loadCurrentUser(response.accessToken);
-        setUser(currentUser);
-        setError(null);
-        return currentUser;
+          sessionStorage.setItem(storageKey, response.accessToken);
+          setAccessToken(response.accessToken);
+          const currentUser = await loadCurrentUser(response.accessToken);
+          setUser(currentUser);
+          setError(null);
+          return currentUser;
+        } catch (authError) {
+          setError(authError instanceof Error ? authError.message : "Unable to register.");
+          throw authError;
+        }
       },
       completeOAuth: async (token) => {
-        sessionStorage.setItem(storageKey, token);
-        setAccessToken(token);
-        const currentUser = await loadCurrentUser(token);
-        setUser(currentUser);
-        setError(null);
-        return currentUser;
+        try {
+          sessionStorage.setItem(storageKey, token);
+          setAccessToken(token);
+          const currentUser = await loadCurrentUser(token);
+          setUser(currentUser);
+          setError(null);
+          return currentUser;
+        } catch (authError) {
+          setError(authError instanceof Error ? authError.message : "Unable to complete sign-in.");
+          throw authError;
+        }
       },
       updateRoleSelection: async (role) => {
         if (!accessToken) {
           throw new Error("Authentication required.");
         }
 
-        const updatedUser = await apiFetch<AuthUser>("/profile/role", {
-          method: "PUT",
-          token: accessToken,
-          body: JSON.stringify({ role }),
-        });
+        try {
+          const updatedUser = await apiFetch<AuthUser>("/profile/role", {
+            method: "PUT",
+            token: accessToken,
+            body: JSON.stringify({ role }),
+          });
 
-        setUser(updatedUser);
-        setError(null);
-        return updatedUser;
+          setUser(updatedUser);
+          setError(null);
+          return updatedUser;
+        } catch (authError) {
+          setError(authError instanceof Error ? authError.message : "Unable to save account type.");
+          throw authError;
+        }
       },
       logout: async () => {
         await apiFetch("/auth/logout", {

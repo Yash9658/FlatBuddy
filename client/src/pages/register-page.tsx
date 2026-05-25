@@ -13,15 +13,27 @@ export function RegisterPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     clearError();
+    setFormError(null);
     setIsSubmitting(true);
 
     try {
+      if (fullName.trim().length < 2) {
+        throw new Error("Enter your full name.");
+      }
+
+      if (password.length < 8) {
+        throw new Error("Password must be at least 8 characters long.");
+      }
+
       const currentUser = await register({ fullName, email, password, role: "TENANT" });
       navigate(getPostAuthRoute(currentUser));
+    } catch (submitError) {
+      setFormError(submitError instanceof Error ? submitError.message : "Unable to create account.");
     } finally {
       setIsSubmitting(false);
     }
@@ -50,10 +62,11 @@ export function RegisterPage() {
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
                 type="password"
+                minLength={8}
                 required
               />
             </label>
-            {error ? <p className="text-sm text-red-600">{error}</p> : null}
+            {formError || error ? <p className="text-sm text-red-600">{formError ?? error}</p> : null}
             <Button disabled={isSubmitting} type="submit">
               {isSubmitting ? "Creating account..." : "Create account"}
             </Button>

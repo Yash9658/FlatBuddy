@@ -94,8 +94,19 @@ export function TenantSetupPage() {
     setMessage(null);
 
     try {
-      if (!fullName.trim() || !targetCityId || !budgetMin || !budgetMax || !sleepSchedule.trim() || splitCsv(interests).length === 0) {
+      const minimumBudget = Number(budgetMin);
+      const maximumBudget = Number(budgetMax);
+
+      if (fullName.trim().length < 2 || !targetCityId || !budgetMin || !budgetMax || !sleepSchedule.trim() || splitCsv(interests).length === 0) {
         throw new Error("Add full name, target city, budget range, sleep schedule, and at least one interest before continuing.");
+      }
+
+      if (!Number.isFinite(minimumBudget) || !Number.isFinite(maximumBudget) || minimumBudget <= 0 || maximumBudget <= 0) {
+        throw new Error("Enter a valid budget range.");
+      }
+
+      if (minimumBudget > maximumBudget) {
+        throw new Error("Minimum budget cannot be greater than maximum budget.");
       }
 
       await apiFetch("/profile", {
@@ -107,8 +118,8 @@ export function TenantSetupPage() {
           currentCity,
           targetCityId: targetCityId || undefined,
           preferredArea,
-          budgetMin: budgetMin ? Number(budgetMin) : undefined,
-          budgetMax: budgetMax ? Number(budgetMax) : undefined,
+          budgetMin: minimumBudget,
+          budgetMax: maximumBudget,
           moveInDate: moveInDate || undefined,
           bio,
         }),
