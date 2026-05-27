@@ -22,7 +22,7 @@ const propertyTypes: PropertyType[] = ["PRIVATE_ROOM", "SHARED_ROOM", "STUDIO", 
 export function LandlordPage() {
   const { user, accessToken, refreshUser } = useAuth();
   const { showToast } = useToast();
-  const { cities } = useCities();
+  const { cities, error: citiesError, isLoading: citiesLoading } = useCities({ allowFallback: false });
   const [refreshKey, setRefreshKey] = useState(0);
   const hasLandlordPro = hasActivePlan(user, "LANDLORD_PRO");
   const { properties, isLoading, error } = useProperties({
@@ -107,6 +107,10 @@ export function LandlordPage() {
     setSubmissionMessage(null);
 
     try {
+      if (citiesLoading || citiesError || !cities.some((city) => city.id === cityId)) {
+        throw new Error("Cities are not available right now. Refresh and try again.");
+      }
+
       await apiFetch("/properties", {
         method: "POST",
         token: accessToken,
@@ -507,11 +511,12 @@ export function LandlordPage() {
                 <select
                   value={cityId}
                   onChange={(event) => setCityId(event.target.value)}
+                  disabled={citiesLoading || Boolean(citiesError)}
                   className="flex h-11 w-full rounded-xl border border-input bg-white px-4 py-2 text-sm outline-none transition focus-visible:ring-2 focus-visible:ring-ring"
                 >
-                  <option value="">Select city</option>
+                  <option value="">{citiesLoading ? "Loading cities..." : "Select city"}</option>
                   {cities.map((city) => (
-                    <option key={city.id ?? city.slug} value={city.id}>
+                    <option key={city.id ?? city.slug} value={city.id ?? ""}>
                       {city.name}
                     </option>
                   ))}
@@ -622,6 +627,7 @@ export function LandlordPage() {
               ) : null}
             </div>
             {submissionMessage ? <p className="text-sm text-muted-foreground">{submissionMessage}</p> : null}
+            {citiesError ? <p className="text-sm text-red-600">Unable to load cities: {citiesError}</p> : null}
             <div className="flex gap-3">
               <Button disabled={isSubmitting || reachedFreeListingLimit} onClick={() => void handleSubmit()}>
                 <Building2 className="size-4" />

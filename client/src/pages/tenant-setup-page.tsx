@@ -30,7 +30,7 @@ const drinkingOptions: DrinkingPreference[] = ["NO", "OCCASIONAL", "YES", "FLEXI
 export function TenantSetupPage() {
   const navigate = useNavigate();
   const { user, accessToken, refreshUser } = useAuth();
-  const { cities } = useCities();
+  const { cities, error: citiesError, isLoading: citiesLoading } = useCities({ allowFallback: false });
   const [fullName, setFullName] = useState("");
   const [occupation, setOccupation] = useState<OccupationType>("WORKING_PROFESSIONAL");
   const [currentCity, setCurrentCity] = useState("");
@@ -99,6 +99,10 @@ export function TenantSetupPage() {
 
       if (fullName.trim().length < 2 || !targetCityId || !budgetMin || !budgetMax) {
         throw new Error("Add full name, target city, and budget range before continuing.");
+      }
+
+      if (citiesLoading || citiesError || !cities.some((city) => city.id === targetCityId)) {
+        throw new Error("Target cities are not available right now. Refresh and try again.");
       }
 
       if (!Number.isFinite(minimumBudget) || !Number.isFinite(maximumBudget) || minimumBudget <= 0 || maximumBudget <= 0) {
@@ -200,11 +204,12 @@ export function TenantSetupPage() {
                   <select
                     value={targetCityId}
                     onChange={(event) => setTargetCityId(event.target.value)}
+                    disabled={citiesLoading || Boolean(citiesError)}
                     className="flex h-11 w-full rounded-xl border border-input bg-white px-4 py-2 text-sm outline-none transition focus-visible:ring-2 focus-visible:ring-ring"
                   >
-                    <option value="">Select target city</option>
+                    <option value="">{citiesLoading ? "Loading cities..." : "Select target city"}</option>
                     {cities.map((city) => (
-                      <option key={city.id ?? city.slug} value={city.id}>
+                      <option key={city.id ?? city.slug} value={city.id ?? ""}>
                         {city.name}
                       </option>
                     ))}
@@ -369,6 +374,7 @@ export function TenantSetupPage() {
               </Link>
             </div>
             {message ? <p className="text-sm text-red-600">{message}</p> : null}
+            {citiesError ? <p className="text-sm text-red-600">Unable to load target cities: {citiesError}</p> : null}
           </CardContent>
         </Card>
       </div>

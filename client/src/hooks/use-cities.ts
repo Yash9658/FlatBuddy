@@ -3,8 +3,12 @@ import { apiFetch } from "@/lib/api";
 import type { City } from "@/lib/types";
 import { featuredCities } from "@/data/mock";
 
-export function useCities() {
-  const [cities, setCities] = useState<City[]>(featuredCities);
+type UseCitiesOptions = {
+  allowFallback?: boolean;
+};
+
+export function useCities({ allowFallback = true }: UseCitiesOptions = {}) {
+  const [cities, setCities] = useState<City[]>(allowFallback ? featuredCities : []);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -14,11 +18,13 @@ export function useCities() {
     async function loadCities() {
       try {
         const response = await apiFetch<City[]>("/cities", { method: "GET" });
-        if (!ignore && response.length > 0) {
+        if (!ignore) {
           setCities(response);
+          setError(response.length > 0 ? null : "No cities are available from the server.");
         }
       } catch (loadError) {
         if (!ignore) {
+          setCities(allowFallback ? featuredCities : []);
           setError(loadError instanceof Error ? loadError.message : "Unable to load cities.");
         }
       } finally {
@@ -33,7 +39,7 @@ export function useCities() {
     return () => {
       ignore = true;
     };
-  }, []);
+  }, [allowFallback]);
 
   return {
     cities,

@@ -17,7 +17,7 @@ import type { GroupInvitationFeed, GroupInvitationItem } from "@/lib/types";
 export function GroupsPage() {
   const { accessToken, user } = useAuth();
   const { showToast } = useToast();
-  const { cities } = useCities();
+  const { cities, error: citiesError, isLoading: citiesLoading } = useCities({ allowFallback: false });
   const [refreshKey, setRefreshKey] = useState(0);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -138,6 +138,10 @@ export function GroupsPage() {
     setMessage(null);
 
     try {
+      if (cityId && (citiesLoading || citiesError || !cities.some((city) => city.id === cityId))) {
+        throw new Error("Cities are not available right now. Refresh and try again.");
+      }
+
       await apiFetch("/groups", {
         method: "POST",
         token: accessToken,
@@ -263,11 +267,12 @@ export function GroupsPage() {
             <select
               value={cityId}
               onChange={(event) => setCityId(event.target.value)}
+              disabled={citiesLoading || Boolean(citiesError)}
               className="flex h-11 w-full rounded-xl border border-input bg-white px-4 py-2 text-sm outline-none transition focus-visible:ring-2 focus-visible:ring-ring"
             >
-              <option value="">Optional city</option>
+              <option value="">{citiesLoading ? "Loading cities..." : "Optional city"}</option>
               {cities.map((city) => (
-                <option key={city.id ?? city.slug} value={city.id}>
+                <option key={city.id ?? city.slug} value={city.id ?? ""}>
                   {city.name}
                 </option>
               ))}
@@ -312,6 +317,7 @@ export function GroupsPage() {
             ))}
           </div>
           {message ? <p className="text-sm text-muted-foreground">{message}</p> : null}
+          {citiesError ? <p className="text-sm text-red-600">Unable to load cities: {citiesError}</p> : null}
           <Button disabled={isSubmitting || !name.trim()} onClick={() => void handleCreateGroup()}>
             {isSubmitting ? "Creating..." : "Create group"}
           </Button>

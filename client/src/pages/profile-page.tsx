@@ -35,7 +35,7 @@ const drinkingOptions: DrinkingPreference[] = ["NO", "OCCASIONAL", "YES", "FLEXI
 
 export function ProfilePage() {
   const { user, accessToken, refreshUser } = useAuth();
-  const { cities } = useCities();
+  const { cities, error: citiesError, isLoading: citiesLoading } = useCities({ allowFallback: false });
   const isAdminView = user?.role === "ADMIN";
   const isLandlordView = user?.role === "LANDLORD";
   const { matches, isLoading: matchesLoading, error: matchesError } = useMatches(
@@ -131,6 +131,8 @@ export function ProfilePage() {
         validateTenantProfileFields(budgetMin, budgetMax, moveInDate);
       }
 
+      validateSelectedCity(targetCityId, cities, citiesLoading, citiesError);
+
       await apiFetch("/profile", {
         method: "PUT",
         token: accessToken,
@@ -217,6 +219,8 @@ export function ProfilePage() {
         analyticsLoading={analyticsLoading}
         bio={bio}
         cities={cities}
+        citiesError={citiesError}
+        citiesLoading={citiesLoading}
         collegeOrCompany={collegeOrCompany}
         currentCity={currentCity}
         fullName={fullName}
@@ -271,6 +275,8 @@ export function ProfilePage() {
       budgetMax={budgetMax}
       budgetMin={budgetMin}
       cities={cities}
+      citiesError={citiesError}
+      citiesLoading={citiesLoading}
       cleanlinessLevel={cleanlinessLevel}
       commonInterests={commonInterests}
       currentCity={currentCity}
@@ -326,6 +332,8 @@ type LandlordProfileViewProps = {
   analyticsLoading: boolean;
   bio: string;
   cities: City[];
+  citiesError: string | null;
+  citiesLoading: boolean;
   collegeOrCompany: string;
   currentCity: string;
   fullName: string;
@@ -355,6 +363,8 @@ function LandlordProfileView({
   analyticsLoading,
   bio,
   cities,
+  citiesError,
+  citiesLoading,
   collegeOrCompany,
   currentCity,
   fullName,
@@ -501,11 +511,12 @@ function LandlordProfileView({
                 <select
                   value={targetCityId}
                   onChange={(event) => setTargetCityId(event.target.value)}
+                  disabled={citiesLoading || Boolean(citiesError)}
                   className="flex h-11 w-full rounded-xl border border-input bg-white px-4 py-2 text-sm outline-none transition focus-visible:ring-2 focus-visible:ring-ring"
                 >
-                  <option value="">Select primary city</option>
+                  <option value="">{citiesLoading ? "Loading cities..." : "Select primary city"}</option>
                   {cities.map((city) => (
-                    <option key={city.id ?? city.slug} value={city.id}>
+                    <option key={city.id ?? city.slug} value={city.id ?? ""}>
                       {city.name}
                     </option>
                   ))}
@@ -533,6 +544,7 @@ function LandlordProfileView({
               />
             </label>
             {profileMessage ? <p className="text-sm text-muted-foreground">{profileMessage}</p> : null}
+            {citiesError ? <p className="text-sm text-red-600">Unable to load cities: {citiesError}</p> : null}
             <div className="flex flex-wrap gap-3">
               <Button disabled={isSavingProfile} onClick={onSave}>
                 <UserRound className="size-4" />
@@ -792,6 +804,8 @@ type TenantProfileViewProps = {
   budgetMax: string;
   budgetMin: string;
   cities: City[];
+  citiesError: string | null;
+  citiesLoading: boolean;
   cleanlinessLevel: string;
   commonInterests: string[];
   currentCity: string;
@@ -845,6 +859,8 @@ function TenantProfileView({
   budgetMax,
   budgetMin,
   cities,
+  citiesError,
+  citiesLoading,
   cleanlinessLevel,
   commonInterests,
   currentCity,
@@ -1002,11 +1018,12 @@ function TenantProfileView({
                 <select
                   value={targetCityId}
                   onChange={(event) => setTargetCityId(event.target.value)}
+                  disabled={citiesLoading || Boolean(citiesError)}
                   className="flex h-11 w-full rounded-xl border border-input bg-white px-4 py-2 text-sm outline-none transition focus-visible:ring-2 focus-visible:ring-ring"
                 >
-                  <option value="">Select target city</option>
+                  <option value="">{citiesLoading ? "Loading cities..." : "Select target city"}</option>
                   {cities.map((city) => (
-                    <option key={city.id ?? city.slug} value={city.id}>
+                    <option key={city.id ?? city.slug} value={city.id ?? ""}>
                       {city.name}
                     </option>
                   ))}
@@ -1034,6 +1051,7 @@ function TenantProfileView({
               <Textarea value={bio} onChange={(event) => setBio(event.target.value)} />
             </label>
             {profileMessage ? <p className="text-sm text-muted-foreground">{profileMessage}</p> : null}
+            {citiesError ? <p className="text-sm text-red-600">Unable to load target cities: {citiesError}</p> : null}
             <div className="flex flex-wrap gap-3">
               <Button disabled={isSavingProfile} onClick={onSaveProfile}>
                 <UserRound className="size-4" />
@@ -1241,6 +1259,16 @@ function validateTenantProfileFields(budgetMin: string, budgetMax: string, moveI
 
   if (isPastDateInput(moveInDate)) {
     throw new Error("Move-in date cannot be before today.");
+  }
+}
+
+function validateSelectedCity(targetCityId: string, cities: City[], citiesLoading: boolean, citiesError: string | null) {
+  if (!targetCityId) {
+    return;
+  }
+
+  if (citiesLoading || citiesError || !cities.some((city) => city.id === targetCityId)) {
+    throw new Error("Target cities are not available right now. Refresh and try again.");
   }
 }
 

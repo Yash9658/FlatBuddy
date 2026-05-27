@@ -15,7 +15,7 @@ const occupationOptions: OccupationType[] = ["OTHER", "WORKING_PROFESSIONAL", "F
 export function LandlordSetupPage() {
   const navigate = useNavigate();
   const { user, accessToken, refreshUser } = useAuth();
-  const { cities } = useCities();
+  const { cities, error: citiesError, isLoading: citiesLoading } = useCities({ allowFallback: false });
   const [fullName, setFullName] = useState("");
   const [occupation, setOccupation] = useState<OccupationType>("OTHER");
   const [currentCity, setCurrentCity] = useState("");
@@ -67,6 +67,10 @@ export function LandlordSetupPage() {
     try {
       if (!fullName.trim() || !targetCityId || !preferredArea.trim() || !phone.trim()) {
         throw new Error("Add full name, primary listing city, preferred area, and phone number before continuing.");
+      }
+
+      if (citiesLoading || citiesError || !cities.some((city) => city.id === targetCityId)) {
+        throw new Error("Cities are not available right now. Refresh and try again.");
       }
 
       await apiFetch("/profile", {
@@ -150,11 +154,12 @@ export function LandlordSetupPage() {
                   <select
                     value={targetCityId}
                     onChange={(event) => setTargetCityId(event.target.value)}
+                    disabled={citiesLoading || Boolean(citiesError)}
                     className="flex h-11 w-full rounded-xl border border-input bg-white px-4 py-2 text-sm outline-none transition focus-visible:ring-2 focus-visible:ring-ring"
                   >
-                    <option value="">Select city</option>
+                    <option value="">{citiesLoading ? "Loading cities..." : "Select city"}</option>
                     {cities.map((city) => (
-                      <option key={city.id ?? city.slug} value={city.id}>
+                      <option key={city.id ?? city.slug} value={city.id ?? ""}>
                         {city.name}
                       </option>
                     ))}
@@ -248,6 +253,7 @@ export function LandlordSetupPage() {
               </Link>
             </div>
             {message ? <p className="text-sm text-red-600">{message}</p> : null}
+            {citiesError ? <p className="text-sm text-red-600">Unable to load cities: {citiesError}</p> : null}
           </CardContent>
         </Card>
       </div>
