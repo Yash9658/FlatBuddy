@@ -390,7 +390,7 @@ function LandlordProfileView({
   const hasManagedAreas = Boolean(preferredArea.trim());
   const hasContactNumber = Boolean(phone.trim());
   const hasPublishedListing = liveListings > 0;
-  const isLandlordProfileReady = Boolean(fullName.trim() && targetCityId && hasManagedAreas && hasContactNumber);
+  const isLandlordProfileReady = Boolean(user.isProfileComplete);
 
   return (
     <div className="grid gap-6 xl:grid-cols-[0.78fr_1.22fr]">
@@ -909,7 +909,7 @@ function TenantProfileView({
 }: TenantProfileViewProps) {
   const hasBudgetRange = Boolean(budgetMin && budgetMax);
   const savedInterestsCount = splitCsv(interests).length;
-  const isTenantProfileReady = Boolean(fullName.trim() && targetCityId && hasBudgetRange);
+  const isTenantProfileReady = Boolean(user.isProfileComplete);
 
   return (
     <div className="grid gap-6 xl:grid-cols-[0.75fr_1.25fr]">
