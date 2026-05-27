@@ -97,8 +97,8 @@ export function TenantSetupPage() {
       const minimumBudget = Number(budgetMin);
       const maximumBudget = Number(budgetMax);
 
-      if (fullName.trim().length < 2 || !targetCityId || !budgetMin || !budgetMax || !sleepSchedule.trim() || splitCsv(interests).length === 0) {
-        throw new Error("Add full name, target city, budget range, sleep schedule, and at least one interest before continuing.");
+      if (fullName.trim().length < 2 || !targetCityId || !budgetMin || !budgetMax) {
+        throw new Error("Add full name, target city, and budget range before continuing.");
       }
 
       if (!Number.isFinite(minimumBudget) || !Number.isFinite(maximumBudget) || minimumBudget <= 0 || maximumBudget <= 0) {
@@ -107,6 +107,10 @@ export function TenantSetupPage() {
 
       if (minimumBudget > maximumBudget) {
         throw new Error("Minimum budget cannot be greater than maximum budget.");
+      }
+
+      if (isPastDateInput(moveInDate)) {
+        throw new Error("Move-in date cannot be before today.");
       }
 
       await apiFetch("/profile", {
@@ -212,7 +216,7 @@ export function TenantSetupPage() {
                 </label>
                 <label className="flex flex-col gap-2 text-sm font-medium">
                   Move-in date
-                  <Input value={moveInDate} onChange={(event) => setMoveInDate(event.target.value)} type="date" />
+                  <Input value={moveInDate} onChange={(event) => setMoveInDate(event.target.value)} min={getTodayDateInputValue()} type="date" />
                 </label>
                 <label className="flex flex-col gap-2 text-sm font-medium">
                   Minimum budget
@@ -377,6 +381,19 @@ function splitCsv(value: string) {
     .split(",")
     .map((item) => item.trim())
     .filter(Boolean);
+}
+
+function getTodayDateInputValue() {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, "0");
+  const day = String(today.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+}
+
+function isPastDateInput(value: string) {
+  return Boolean(value && value < getTodayDateInputValue());
 }
 
 function formatLabel(value: string) {

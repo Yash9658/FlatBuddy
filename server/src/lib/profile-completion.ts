@@ -30,15 +30,13 @@ export function isLandlordProfileComplete(profile?: LandlordProfileShape | null)
 
 export function isTenantProfileComplete(
   profile?: TenantProfileShape | null,
-  preference?: TenantPreferenceShape | null,
+  _preference?: TenantPreferenceShape | null,
 ) {
   return Boolean(
     profile?.fullName?.trim() &&
       profile.targetCityId &&
       profile.budgetMin &&
-      profile.budgetMax &&
-      preference?.sleepSchedule?.trim() &&
-      (preference?.interests?.length ?? 0) > 0,
+      profile.budgetMax,
   );
 }
 

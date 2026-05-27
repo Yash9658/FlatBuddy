@@ -127,6 +127,10 @@ export function ProfilePage() {
     setProfileMessage(null);
 
     try {
+      if (!isLandlordView && !isAdminView) {
+        validateTenantProfileFields(budgetMin, budgetMax, moveInDate);
+      }
+
       await apiFetch("/profile", {
         method: "PUT",
         token: accessToken,
@@ -888,9 +892,8 @@ function TenantProfileView({
   user,
 }: TenantProfileViewProps) {
   const hasBudgetRange = Boolean(budgetMin && budgetMax);
-  const hasSleepSchedule = Boolean(sleepSchedule.trim());
   const savedInterestsCount = splitCsv(interests).length;
-  const isTenantProfileReady = Boolean(fullName.trim() && targetCityId && hasBudgetRange && hasSleepSchedule && savedInterestsCount > 0);
+  const isTenantProfileReady = Boolean(fullName.trim() && targetCityId && hasBudgetRange);
 
   return (
     <div className="grid gap-6 xl:grid-cols-[0.75fr_1.25fr]">
@@ -926,12 +929,12 @@ function TenantProfileView({
                 label: hasBudgetRange ? `Budget range Rs. ${budgetMin} - Rs. ${budgetMax}` : "Set your budget range",
               },
               {
-                done: hasSleepSchedule,
-                label: hasSleepSchedule ? sleepSchedule : "Set a sleep schedule preference",
+                done: Boolean(sleepSchedule.trim()),
+                label: sleepSchedule.trim() ? sleepSchedule : "Add sleep schedule if you want sharper matching",
               },
               {
                 done: savedInterestsCount > 0,
-                label: savedInterestsCount > 0 ? `${savedInterestsCount} interest tags saved` : "Add a few interests for stronger matching",
+                label: savedInterestsCount > 0 ? `${savedInterestsCount} interest tags saved` : "Add interests if you want sharper matching",
               },
             ].map((item) => (
               <div key={item.label} className="flex items-center gap-3 rounded-2xl bg-muted/50 p-3 text-sm">
@@ -1015,7 +1018,7 @@ function TenantProfileView({
               </label>
               <label className="flex flex-col gap-2 text-sm font-medium">
                 Move-in date
-                <Input value={moveInDate} onChange={(event) => setMoveInDate(event.target.value)} type="date" />
+                <Input value={moveInDate} onChange={(event) => setMoveInDate(event.target.value)} min={getTodayDateInputValue()} type="date" />
               </label>
               <label className="flex flex-col gap-2 text-sm font-medium">
                 Minimum budget
@@ -1219,11 +1222,46 @@ function hydratePreferenceState(user: AuthUser) {
   };
 }
 
+function validateTenantProfileFields(budgetMin: string, budgetMax: string, moveInDate: string) {
+  const hasMinimumBudget = Boolean(budgetMin);
+  const hasMaximumBudget = Boolean(budgetMax);
+  const minimumBudget = Number(budgetMin);
+  const maximumBudget = Number(budgetMax);
+
+  if (
+    (hasMinimumBudget && (!Number.isFinite(minimumBudget) || minimumBudget <= 0)) ||
+    (hasMaximumBudget && (!Number.isFinite(maximumBudget) || maximumBudget <= 0))
+  ) {
+    throw new Error("Enter a valid budget range.");
+  }
+
+  if (hasMinimumBudget && hasMaximumBudget && minimumBudget > maximumBudget) {
+    throw new Error("Minimum budget cannot be greater than maximum budget.");
+  }
+
+  if (isPastDateInput(moveInDate)) {
+    throw new Error("Move-in date cannot be before today.");
+  }
+}
+
 function splitCsv(value: string) {
   return value
     .split(",")
     .map((item) => item.trim())
     .filter(Boolean);
+}
+
+function getTodayDateInputValue() {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, "0");
+  const day = String(today.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+}
+
+function isPastDateInput(value: string) {
+  return Boolean(value && value < getTodayDateInputValue());
 }
 
 function getInitials(value: string) {

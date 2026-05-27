@@ -62,8 +62,17 @@ export async function updateProfile(req: Request, res: Response) {
     }
   }
 
-  if (req.auth.role === UserRole.TENANT && payload.budgetMin && payload.budgetMax && payload.budgetMin > payload.budgetMax) {
+  if (
+    req.auth.role === UserRole.TENANT &&
+    payload.budgetMin !== undefined &&
+    payload.budgetMax !== undefined &&
+    payload.budgetMin > payload.budgetMax
+  ) {
     return res.status(400).json({ message: "Minimum budget cannot be greater than maximum budget." });
+  }
+
+  if (req.auth.role === UserRole.TENANT && payload.moveInDate && isBeforeToday(payload.moveInDate)) {
+    return res.status(400).json({ message: "Move-in date cannot be before today." });
   }
 
   const profile = await prisma.profile.upsert({
@@ -310,4 +319,14 @@ export async function requestLandlordVerification(req: Request, res: Response) {
   });
 
   return res.json(updatedUser);
+}
+
+function isBeforeToday(value: Date) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const date = new Date(value);
+  date.setHours(0, 0, 0, 0);
+
+  return date < today;
 }
