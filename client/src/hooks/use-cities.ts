@@ -19,8 +19,9 @@ export function useCities({ allowFallback = true }: UseCitiesOptions = {}) {
       try {
         const response = await apiFetch<City[]>("/cities", { method: "GET" });
         if (!ignore) {
-          setCities(response);
-          setError(response.length > 0 ? null : "No cities are available from the server.");
+          const usableCities = allowFallback ? response : response.filter((city) => Boolean(city.id));
+          setCities(usableCities);
+          setError(usableCities.length > 0 ? null : "No database cities are available from the server.");
         }
       } catch (loadError) {
         if (!ignore) {
