@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import type { NextFunction, Request, Response } from "express";
 import { ZodError } from "zod";
 import { env } from "../config/env.js";
@@ -15,6 +16,28 @@ export function errorHandler(
       message: firstIssue?.message ?? "Validation failed.",
       issues: error.flatten(),
     });
+  }
+
+  if (error instanceof Prisma.PrismaClientKnownRequestError) {
+    console.error(error);
+
+    if (error.code === "P2002") {
+      return res.status(409).json({
+        message: "A record with the same value already exists.",
+      });
+    }
+
+    if (error.code === "P2003") {
+      return res.status(400).json({
+        message: "One of the selected records is invalid or no longer exists.",
+      });
+    }
+
+    if (error.code === "P2025") {
+      return res.status(404).json({
+        message: "The requested record was not found.",
+      });
+    }
   }
 
   if (error instanceof Error) {

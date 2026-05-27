@@ -51,6 +51,21 @@ export async function updateProfile(req: Request, res: Response) {
 
   const payload = profileSchema.parse(req.body);
 
+  if (payload.targetCityId) {
+    const targetCity = await prisma.city.findUnique({
+      where: { id: payload.targetCityId },
+      select: { id: true },
+    });
+
+    if (!targetCity) {
+      return res.status(400).json({ message: "Selected target city is not valid anymore." });
+    }
+  }
+
+  if (req.auth.role === UserRole.TENANT && payload.budgetMin && payload.budgetMax && payload.budgetMin > payload.budgetMax) {
+    return res.status(400).json({ message: "Minimum budget cannot be greater than maximum budget." });
+  }
+
   const profile = await prisma.profile.upsert({
     where: { userId: req.auth.userId },
     update: payload,
