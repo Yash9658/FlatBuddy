@@ -251,22 +251,20 @@ export function PropertiesPage() {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardContent className="flex flex-col gap-2 p-6 md:flex-row md:items-center md:justify-between">
-          <div>
-            <p className="text-sm font-semibold text-foreground">Landlord Pro visibility</p>
-            <p className="text-sm text-muted-foreground">
-              Featured listings from active Landlord Pro accounts are ranked first in the property feed.
-            </p>
-          </div>
-          <Badge variant="outline">Featured homes float to the top</Badge>
-        </CardContent>
-      </Card>
-
       {actionMessage ? <p className="text-sm text-muted-foreground">{actionMessage}</p> : null}
       {error ? <p className="text-sm text-muted-foreground">{error}</p> : null}
       {isLoading ? <p className="text-sm text-muted-foreground">Loading properties...</p> : null}
       {visitsLoading ? <p className="text-sm text-muted-foreground">Loading your visit requests...</p> : null}
+      {!isLoading && !error && filteredProperties.length === 0 ? (
+        <Card>
+          <CardContent className="p-6">
+            <p className="text-sm font-semibold text-foreground">No active properties found</p>
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">
+              No landlord has published an active listing for these filters yet. Try another city/type, or publish a listing from a landlord account.
+            </p>
+          </CardContent>
+        </Card>
+      ) : null}
 
       <div className="grid gap-6 lg:grid-cols-3">
         {filteredProperties.map((property) => (
