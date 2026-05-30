@@ -35,7 +35,7 @@ export function LoginPage() {
       <Card className="w-full max-w-xl">
         <CardHeader>
           <CardTitle>Login to FlatBuddy</CardTitle>
-          <CardDescription>Use email login, or continue with Google when OAuth is configured.</CardDescription>
+          <CardDescription>Sign in with your email to continue.</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-5">
           <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
@@ -66,12 +66,9 @@ export function LoginPage() {
           </Button>
           {!isGoogleOAuthEnabled ? (
             <p className="text-sm text-muted-foreground">
-              Google OAuth is currently unavailable until the Google client ID, secret, and callback URL are set.
+              Google sign-in is currently unavailable. Please use email login.
             </p>
           ) : null}
-          <div className="rounded-2xl bg-muted/60 p-4 text-sm text-muted-foreground">
-            Use email login for local accounts, or continue with Google once OAuth is configured in your backend env.
-          </div>
           <p className="text-sm text-muted-foreground">
             New here?{" "}
             <Link className="font-semibold text-primary" to="/register">
