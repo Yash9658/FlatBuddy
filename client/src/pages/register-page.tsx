@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/context/auth-context";
-import { getPostAuthRoute } from "@/lib/auth-routing";
 
 export function RegisterPage() {
   const navigate = useNavigate();
@@ -30,8 +29,8 @@ export function RegisterPage() {
         throw new Error("Password must be at least 8 characters long.");
       }
 
-      const currentUser = await register({ fullName, email, password, role: "TENANT" });
-      navigate(getPostAuthRoute(currentUser));
+      const response = await register({ fullName, email, password, role: "TENANT" });
+      navigate(`/verify-email?email=${encodeURIComponent(response.email)}`);
     } catch (submitError) {
       setFormError(submitError instanceof Error ? submitError.message : "Unable to create account.");
     } finally {
@@ -44,7 +43,7 @@ export function RegisterPage() {
       <Card className="w-full max-w-xl">
         <CardHeader>
           <CardTitle>Create your FlatBuddy account</CardTitle>
-          <CardDescription>Sign up first, then choose whether you are joining as a tenant or landlord.</CardDescription>
+          <CardDescription>Create your account, then verify your email before logging in.</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-5">
           <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
@@ -80,7 +79,7 @@ export function RegisterPage() {
           </Button>
           {!isGoogleOAuthEnabled ? (
             <p className="text-sm text-muted-foreground">
-              Google OAuth will appear here once your Google client credentials are configured.
+              Google sign-up is currently unavailable. Please use email signup.
             </p>
           ) : null}
           <p className="text-sm text-muted-foreground">

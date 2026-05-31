@@ -25,7 +25,7 @@ type AuthContextValue = {
   error: string | null;
   isGoogleOAuthEnabled: boolean;
   login: (email: string, password: string) => Promise<AuthUser>;
-  register: (payload: RegisterPayload) => Promise<AuthUser>;
+  register: (payload: RegisterPayload) => Promise<{ message: string; email: string }>;
   logout: () => Promise<void>;
   completeOAuth: (token: string) => Promise<AuthUser>;
   updateRoleSelection: (role: UserRole) => Promise<AuthUser>;
@@ -211,17 +211,13 @@ export function AuthProvider({ children }: PropsWithChildren) {
       },
       register: async (payload) => {
         try {
-          const response = await apiFetch<{ accessToken: string; user: AuthUser }>("/auth/register", {
+          const response = await apiFetch<{ message: string; email: string }>("/auth/register", {
             method: "POST",
             body: JSON.stringify(payload),
           });
 
-          sessionStorage.setItem(storageKey, response.accessToken);
-          setAccessToken(response.accessToken);
-          const currentUser = await loadCurrentUser(response.accessToken);
-          setUser(currentUser);
           setError(null);
-          return currentUser;
+          return response;
         } catch (authError) {
           setError(authError instanceof Error ? authError.message : "Unable to register.");
           throw authError;

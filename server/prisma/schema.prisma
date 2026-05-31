@@ -128,6 +128,7 @@ model User {
   updatedAt           DateTime            @updatedAt
   profile             Profile?
   preference          Preference?
+  emailVerificationTokens EmailVerificationToken[]
   ownedProperties     Property[]          @relation("PropertyOwner")
   refreshTokens       RefreshToken[]
   sentConnections     ConnectionRequest[] @relation("ConnectionSender")
@@ -148,6 +149,18 @@ model User {
   groupShortlists     GroupShortlistedProperty[] @relation("GroupShortlistAddedBy")
   notificationReads   NotificationRead[]
   userNotifications   UserNotification[]
+}
+
+model EmailVerificationToken {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 model Profile {

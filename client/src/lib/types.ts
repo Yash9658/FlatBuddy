@@ -74,6 +74,7 @@ export type AuthUser = {
   email: string;
   role: UserRole;
   authProvider?: string;
+  isEmailVerified?: boolean;
   isProfileComplete?: boolean;
   isSuspended?: boolean;
   suspendedAt?: string | null;

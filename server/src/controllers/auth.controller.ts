@@ -5,6 +5,8 @@ import passport from "passport";
 import { z } from "zod";
 import { env } from "../config/env.js";
 import { getRefreshCookieOptions, refreshCookieName } from "../lib/cookies.js";
+import { buildVerificationUrl, createEmailVerificationToken } from "../lib/email-verification.js";
+import { sendVerificationEmail } from "../lib/email.js";
 import { hashToken, signAccessToken, signRefreshToken, verifyRefreshToken } from "../lib/jwt.js";
 import { computeProfileCompletion } from "../lib/profile-completion.js";
 import { prisma } from "../lib/prisma.js";
@@ -21,6 +23,14 @@ const registerSchema = z.object({
 const loginSchema = z.object({
   email: z.string().email(),
   password: z.string().min(8),
+});
+
+const verifyEmailSchema = z.object({
+  token: z.string().min(20),
+});
+
+const resendVerificationSchema = z.object({
+  email: z.string().email(),
 });
 
 function getRefreshExpiryDate() {
@@ -42,6 +52,7 @@ const authUserSelect = {
   email: true,
   role: true,
   authProvider: true,
+  isEmailVerified: true,
   isProfileComplete: true,
   isSuspended: true,
   suspendedAt: true,
@@ -145,14 +156,15 @@ export async function register(req: Request, res: Response) {
     },
   });
 
-  const { accessToken, refreshToken } = buildAuthResponse(user);
-  await persistRefreshToken(user.id, refreshToken);
-  res.cookie(refreshCookieName, refreshToken, getRefreshCookieOptions());
+  const verificationToken = await createEmailVerificationToken(user.id);
+  await sendVerificationEmail({
+    email: user.email,
+    verificationUrl: buildVerificationUrl(verificationToken),
+  });
 
   return res.status(201).json({
-    message: "Account created successfully.",
-    accessToken,
-    user,
+    message: "Account created. Check your email to verify your account before logging in.",
+    email: user.email,
   });
 }
 
@@ -168,6 +180,10 @@ export async function login(req: Request, res: Response) {
 
   if (user.isSuspended) {
     return res.status(403).json({ message: buildSuspendedMessage(user.suspensionReason) });
+  }
+
+  if (user.authProvider === AuthProvider.LOCAL && !user.isEmailVerified) {
+    return res.status(403).json({ message: "Verify your email before logging in." });
   }
 
   const isValid = await bcrypt.compare(payload.password, user.passwordHash);
@@ -189,6 +205,58 @@ export async function login(req: Request, res: Response) {
       role: user.role,
     },
   });
+}
+
+export async function verifyEmail(req: Request, res: Response) {
+  const payload = verifyEmailSchema.parse(req.body);
+  const tokenHash = hashToken(payload.token);
+
+  const storedToken = await prisma.emailVerificationToken.findUnique({
+    where: { tokenHash },
+    include: { user: true },
+  });
+
+  if (!storedToken || storedToken.usedAt || storedToken.expiresAt < new Date()) {
+    return res.status(400).json({ message: "Verification link is invalid or expired." });
+  }
+
+  await prisma.$transaction([
+    prisma.emailVerificationToken.update({
+      where: { id: storedToken.id },
+      data: { usedAt: new Date() },
+    }),
+    prisma.user.update({
+      where: { id: storedToken.userId },
+      data: { isEmailVerified: true },
+    }),
+  ]);
+
+  return res.json({ message: "Email verified successfully. You can now log in." });
+}
+
+export async function resendVerificationEmail(req: Request, res: Response) {
+  const payload = resendVerificationSchema.parse(req.body);
+  const user = await prisma.user.findUnique({
+    where: { email: payload.email.toLowerCase() },
+    select: {
+      id: true,
+      email: true,
+      authProvider: true,
+      isEmailVerified: true,
+    },
+  });
+
+  if (!user || user.authProvider !== AuthProvider.LOCAL || user.isEmailVerified) {
+    return res.json({ message: "If verification is needed, a new email has been sent." });
+  }
+
+  const verificationToken = await createEmailVerificationToken(user.id);
+  await sendVerificationEmail({
+    email: user.email,
+    verificationUrl: buildVerificationUrl(verificationToken),
+  });
+
+  return res.json({ message: "If verification is needed, a new email has been sent." });
 }
 
 export async function refreshSession(req: Request, res: Response) {

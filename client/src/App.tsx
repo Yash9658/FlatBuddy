@@ -51,6 +51,9 @@ const TenantProfilePage = lazy(() =>
 const TenantSetupPage = lazy(() =>
   import("@/pages/tenant-setup-page").then((module) => ({ default: module.TenantSetupPage })),
 );
+const VerifyEmailPage = lazy(() =>
+  import("@/pages/verify-email-page").then((module) => ({ default: module.VerifyEmailPage })),
+);
 const WelcomePage = lazy(() => import("@/pages/welcome-page").then((module) => ({ default: module.WelcomePage })));
 
 export default function App() {
@@ -59,6 +62,7 @@ export default function App() {
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
+        <Route path="/verify-email" element={<VerifyEmailPage />} />
         <Route path="/auth/callback" element={<AuthCallbackPage />} />
         <Route element={<AppShell />}>
           <Route path="/" element={<HomePage />} />

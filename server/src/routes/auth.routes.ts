@@ -8,6 +8,8 @@ import {
   logout,
   refreshSession,
   register,
+  resendVerificationEmail,
+  verifyEmail,
 } from "../controllers/auth.controller.js";
 import { requireAuth } from "../middleware/auth.js";
 import { createRateLimit } from "../middleware/rate-limit.js";
@@ -22,6 +24,8 @@ const authWriteLimiter = createRateLimit({
 
 router.post("/register", authWriteLimiter, asyncHandler(register));
 router.post("/login", authWriteLimiter, asyncHandler(login));
+router.post("/verify-email", authWriteLimiter, asyncHandler(verifyEmail));
+router.post("/resend-verification", authWriteLimiter, asyncHandler(resendVerificationEmail));
 router.post("/refresh", authWriteLimiter, asyncHandler(refreshSession));
 router.post("/logout", authWriteLimiter, asyncHandler(logout));
 router.get("/config", asyncHandler(getAuthConfig));
