@@ -117,6 +117,21 @@ async function syncProfileCompletionIfNeeded(userId: string) {
   return currentUser;
 }
 
+async function sendVerificationForUser(user: { id: string; email: string }) {
+  const verificationToken = await createEmailVerificationToken(user.id);
+  const verificationUrl = buildVerificationUrl(verificationToken);
+
+  try {
+    await sendVerificationEmail({
+      email: user.email,
+      verificationUrl,
+    });
+  } catch (error) {
+    console.error("Unable to send verification email.", error);
+    console.log(`Email verification link for ${user.email}: ${verificationUrl}`);
+  }
+}
+
 export async function register(req: Request, res: Response) {
   const payload = registerSchema.parse(req.body);
   const existingUser = await prisma.user.findUnique({
@@ -124,6 +139,15 @@ export async function register(req: Request, res: Response) {
   });
 
   if (existingUser) {
+    if (existingUser.authProvider === AuthProvider.LOCAL && !existingUser.isEmailVerified) {
+      await sendVerificationForUser(existingUser);
+
+      return res.status(200).json({
+        message: "This account is already created but not verified. We sent a new verification email.",
+        email: existingUser.email,
+      });
+    }
+
     return res.status(409).json({ message: "An account already exists for this email." });
   }
 
@@ -156,18 +180,7 @@ export async function register(req: Request, res: Response) {
     },
   });
 
-  const verificationToken = await createEmailVerificationToken(user.id);
-  const verificationUrl = buildVerificationUrl(verificationToken);
-
-  try {
-    await sendVerificationEmail({
-      email: user.email,
-      verificationUrl,
-    });
-  } catch (error) {
-    console.error("Unable to send verification email.", error);
-    console.log(`Email verification link for ${user.email}: ${verificationUrl}`);
-  }
+  await sendVerificationForUser(user);
 
   return res.status(201).json({
     message: "Account created. Check your email to verify your account before logging in.",
@@ -257,18 +270,7 @@ export async function resendVerificationEmail(req: Request, res: Response) {
     return res.json({ message: "If verification is needed, a new email has been sent." });
   }
 
-  const verificationToken = await createEmailVerificationToken(user.id);
-  const verificationUrl = buildVerificationUrl(verificationToken);
-
-  try {
-    await sendVerificationEmail({
-      email: user.email,
-      verificationUrl,
-    });
-  } catch (error) {
-    console.error("Unable to send verification email.", error);
-    console.log(`Email verification link for ${user.email}: ${verificationUrl}`);
-  }
+  await sendVerificationForUser(user);
 
   return res.json({ message: "If verification is needed, a new email has been sent." });
 }
