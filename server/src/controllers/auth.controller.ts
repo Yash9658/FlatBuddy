@@ -157,10 +157,17 @@ export async function register(req: Request, res: Response) {
   });
 
   const verificationToken = await createEmailVerificationToken(user.id);
-  await sendVerificationEmail({
-    email: user.email,
-    verificationUrl: buildVerificationUrl(verificationToken),
-  });
+  const verificationUrl = buildVerificationUrl(verificationToken);
+
+  try {
+    await sendVerificationEmail({
+      email: user.email,
+      verificationUrl,
+    });
+  } catch (error) {
+    console.error("Unable to send verification email.", error);
+    console.log(`Email verification link for ${user.email}: ${verificationUrl}`);
+  }
 
   return res.status(201).json({
     message: "Account created. Check your email to verify your account before logging in.",
@@ -251,10 +258,17 @@ export async function resendVerificationEmail(req: Request, res: Response) {
   }
 
   const verificationToken = await createEmailVerificationToken(user.id);
-  await sendVerificationEmail({
-    email: user.email,
-    verificationUrl: buildVerificationUrl(verificationToken),
-  });
+  const verificationUrl = buildVerificationUrl(verificationToken);
+
+  try {
+    await sendVerificationEmail({
+      email: user.email,
+      verificationUrl,
+    });
+  } catch (error) {
+    console.error("Unable to send verification email.", error);
+    console.log(`Email verification link for ${user.email}: ${verificationUrl}`);
+  }
 
   return res.json({ message: "If verification is needed, a new email has been sent." });
 }
