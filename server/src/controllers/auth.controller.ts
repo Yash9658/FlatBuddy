@@ -117,19 +117,17 @@ async function syncProfileCompletionIfNeeded(userId: string) {
   return currentUser;
 }
 
-async function sendVerificationForUser(user: { id: string; email: string }) {
+async function queueVerificationForUser(user: { id: string; email: string }) {
   const verificationToken = await createEmailVerificationToken(user.id);
   const verificationUrl = buildVerificationUrl(verificationToken);
 
-  try {
-    await sendVerificationEmail({
+  void sendVerificationEmail({
       email: user.email,
       verificationUrl,
+    }).catch((error) => {
+      console.error("Unable to send verification email.", error);
+      console.log(`Email verification link for ${user.email}: ${verificationUrl}`);
     });
-  } catch (error) {
-    console.error("Unable to send verification email.", error);
-    console.log(`Email verification link for ${user.email}: ${verificationUrl}`);
-  }
 }
 
 export async function register(req: Request, res: Response) {
@@ -140,7 +138,7 @@ export async function register(req: Request, res: Response) {
 
   if (existingUser) {
     if (existingUser.authProvider === AuthProvider.LOCAL && !existingUser.isEmailVerified) {
-      await sendVerificationForUser(existingUser);
+      await queueVerificationForUser(existingUser);
 
       return res.status(200).json({
         message: "This account is already created but not verified. We sent a new verification email.",
@@ -180,7 +178,7 @@ export async function register(req: Request, res: Response) {
     },
   });
 
-  await sendVerificationForUser(user);
+  await queueVerificationForUser(user);
 
   return res.status(201).json({
     message: "Account created. Check your email to verify your account before logging in.",
@@ -270,7 +268,7 @@ export async function resendVerificationEmail(req: Request, res: Response) {
     return res.json({ message: "If verification is needed, a new email has been sent." });
   }
 
-  await sendVerificationForUser(user);
+  await queueVerificationForUser(user);
 
   return res.json({ message: "If verification is needed, a new email has been sent." });
 }
