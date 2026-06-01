@@ -23,6 +23,7 @@ const envSchema = z.object({
   STRIPE_BILLING_SUCCESS_URL: z.string().url().optional(),
   STRIPE_BILLING_CANCEL_URL: z.string().url().optional(),
   STRIPE_PORTAL_RETURN_URL: z.string().url().optional(),
+  BREVO_API_KEY: z.string().optional(),
   SMTP_HOST: z.string().optional(),
   SMTP_PORT: z.coerce.number().optional(),
   SMTP_SECURE: z

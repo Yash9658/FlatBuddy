@@ -10,9 +10,60 @@ function isSmtpConfigured() {
   return Boolean(env.SMTP_HOST && env.SMTP_PORT && env.SMTP_USER && env.SMTP_PASS && env.EMAIL_FROM);
 }
 
+function isBrevoApiConfigured() {
+  return Boolean(env.BREVO_API_KEY && env.EMAIL_FROM);
+}
+
+function parseEmailAddress(value: string) {
+  const match = value.match(/^(.*)<(.+)>$/);
+
+  if (!match) {
+    return {
+      email: value.trim(),
+      name: undefined,
+    };
+  }
+
+  return {
+    name: match[1]?.trim() || undefined,
+    email: match[2]?.trim(),
+  };
+}
+
 export async function sendVerificationEmail({ email, verificationUrl }: VerificationEmailInput) {
-  if (!isSmtpConfigured()) {
+  if (!isBrevoApiConfigured() && !isSmtpConfigured()) {
     console.log(`Email verification link for ${email}: ${verificationUrl}`);
+    return;
+  }
+
+  if (isBrevoApiConfigured()) {
+    const sender = parseEmailAddress(env.EMAIL_FROM!);
+    const response = await fetch("https://api.brevo.com/v3/smtp/email", {
+      method: "POST",
+      headers: {
+        accept: "application/json",
+        "api-key": env.BREVO_API_KEY!,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        sender,
+        to: [{ email }],
+        subject: "Verify your FlatBuddy email",
+        htmlContent: `
+          <p>Welcome to FlatBuddy.</p>
+          <p>Verify your email to activate your account:</p>
+          <p><a href="${verificationUrl}">Verify email</a></p>
+          <p>This link expires in 1 hour.</p>
+        `,
+        textContent: `Verify your FlatBuddy email: ${verificationUrl}\n\nThis link expires in 1 hour.`,
+      }),
+    });
+
+    if (!response.ok) {
+      const message = await response.text();
+      throw new Error(`Brevo email API failed: ${message || response.statusText}`);
+    }
+
     return;
   }
 
