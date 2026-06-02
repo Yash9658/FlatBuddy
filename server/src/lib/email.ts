@@ -15,17 +15,18 @@ function isBrevoApiConfigured() {
 }
 
 function parseEmailAddress(value: string) {
-  const match = value.match(/^(.*)<(.+)>$/);
+  const normalizedValue = value.trim().replace(/^["']|["']$/g, "");
+  const match = normalizedValue.match(/^(.*)<(.+)>$/);
 
   if (!match) {
     return {
-      email: value.trim(),
+      email: normalizedValue,
       name: undefined,
     };
   }
 
   return {
-    name: match[1]?.trim() || undefined,
+    name: match[1]?.trim().replace(/^["']|["']$/g, "") || undefined,
     email: match[2]?.trim(),
   };
 }
