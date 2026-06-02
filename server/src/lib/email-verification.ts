@@ -16,19 +16,6 @@ export function buildVerificationUrl(token: string) {
 }
 
 export async function createEmailVerificationToken(userId: string) {
-  await prisma.emailVerificationToken.updateMany({
-    where: {
-      userId,
-      usedAt: null,
-      expiresAt: {
-        gt: new Date(),
-      },
-    },
-    data: {
-      usedAt: new Date(),
-    },
-  });
-
   const token = createVerificationToken();
 
   await prisma.emailVerificationToken.create({
