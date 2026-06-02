@@ -9,7 +9,7 @@ import { getPostAuthRoute } from "@/lib/auth-routing";
 export function LoginPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { login, getOAuthUrl, isGoogleOAuthEnabled, error, clearError } = useAuth();
+  const { login, getOAuthUrl, isGoogleOAuthEnabled, isLoading, error, clearError } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -60,11 +60,11 @@ export function LoginPage() {
           <Button
             onClick={() => (window.location.href = getOAuthUrl())}
             variant="outline"
-            disabled={!isGoogleOAuthEnabled}
+            disabled={isLoading || !isGoogleOAuthEnabled}
           >
-            Continue with Google
+            {isLoading ? "Checking Google sign-in..." : "Continue with Google"}
           </Button>
-          {!isGoogleOAuthEnabled ? (
+          {!isLoading && !isGoogleOAuthEnabled ? (
             <p className="text-sm text-muted-foreground">
               Google sign-in is currently unavailable. Please use email login.
             </p>

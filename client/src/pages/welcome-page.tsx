@@ -30,9 +30,7 @@ const selectableRoles: Array<{
 export function WelcomePage() {
   const navigate = useNavigate();
   const { user, updateRoleSelection } = useAuth();
-  const [selectedRole, setSelectedRole] = useState<Extract<UserRole, "TENANT" | "LANDLORD">>(
-    user?.role === "LANDLORD" ? "LANDLORD" : "TENANT",
-  );
+  const [selectedRole, setSelectedRole] = useState<Extract<UserRole, "TENANT" | "LANDLORD"> | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
@@ -52,6 +50,10 @@ export function WelcomePage() {
     setMessage(null);
 
     try {
+      if (!selectedRole) {
+        throw new Error("Choose how you want to use FlatBuddy before continuing.");
+      }
+
       await updateRoleSelection(selectedRole);
       navigate(selectedRole === "LANDLORD" ? "/setup/landlord" : "/setup/tenant");
     } catch (error) {
@@ -99,7 +101,7 @@ export function WelcomePage() {
         </div>
 
         <div className="flex flex-wrap gap-3">
-          <Button onClick={() => void handleContinue()} disabled={isSubmitting}>
+          <Button onClick={() => void handleContinue()} disabled={isSubmitting || !selectedRole}>
             {isSubmitting ? "Saving..." : "Continue to profile setup"}
           </Button>
           <Link className={buttonVariants({ variant: "outline" })} to="/about">

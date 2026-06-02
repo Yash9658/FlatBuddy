@@ -7,7 +7,7 @@ import { useAuth } from "@/context/auth-context";
 
 export function RegisterPage() {
   const navigate = useNavigate();
-  const { register, getOAuthUrl, isGoogleOAuthEnabled, error, clearError } = useAuth();
+  const { register, getOAuthUrl, isGoogleOAuthEnabled, isLoading, error, clearError } = useAuth();
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -73,11 +73,11 @@ export function RegisterPage() {
           <Button
             onClick={() => (window.location.href = getOAuthUrl())}
             variant="outline"
-            disabled={!isGoogleOAuthEnabled}
+            disabled={isLoading || !isGoogleOAuthEnabled}
           >
-            Continue with Google
+            {isLoading ? "Checking Google sign-up..." : "Continue with Google"}
           </Button>
-          {!isGoogleOAuthEnabled ? (
+          {!isLoading && !isGoogleOAuthEnabled ? (
             <p className="text-sm text-muted-foreground">
               Google sign-up is currently unavailable. Please use email signup.
             </p>

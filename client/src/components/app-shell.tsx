@@ -57,6 +57,7 @@ export function AppShell() {
   const unreadCount = chats.reduce((total, chat) => total + (chat.unreadCount ?? 0), 0);
   const isLandlordUser = user?.role === "LANDLORD";
   const isAdminUser = user?.role === "ADMIN";
+  const showRoleBadge = Boolean(user && location.pathname !== "/welcome");
   const navigation = [
     { to: "/", label: "Home", icon: LayoutDashboard, visible: true },
     { to: "/discover", label: "Discover Cities", icon: Compass, visible: true },
@@ -94,7 +95,7 @@ export function AppShell() {
           <div className="hidden items-center gap-3 md:flex">
             {user ? (
               <>
-                <Badge variant="outline">{user.role.toLowerCase()}</Badge>
+                {showRoleBadge ? <Badge variant="outline">{user.role.toLowerCase()}</Badge> : null}
                 <Button variant="outline" onClick={() => void logout()}>
                   <LogOut className="size-4" />
                   Logout
