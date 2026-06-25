@@ -1,6 +1,11 @@
 import "dotenv/config";
 import { z } from "zod";
 
+const optionalNonEmptyString = z.preprocess(
+  (value) => (typeof value === "string" && value.trim() === "" ? undefined : value),
+  z.string().trim().min(1).optional(),
+);
+
 const envSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   HOST: z.string().default("0.0.0.0"),
@@ -16,9 +21,9 @@ const envSchema = z.object({
   GOOGLE_CLIENT_SECRET: z.string().optional(),
   GOOGLE_CALLBACK_URL: z.string().url().optional(),
   PUBLIC_SERVER_URL: z.string().url().optional(),
-  CLOUDINARY_CLOUD_NAME: z.string().trim().min(1).optional(),
-  CLOUDINARY_API_KEY: z.string().trim().min(1).optional(),
-  CLOUDINARY_API_SECRET: z.string().trim().min(1).optional(),
+  CLOUDINARY_CLOUD_NAME: optionalNonEmptyString,
+  CLOUDINARY_API_KEY: optionalNonEmptyString,
+  CLOUDINARY_API_SECRET: optionalNonEmptyString,
   CLOUDINARY_FOLDER: z.string().trim().min(1).default("flatbuddy/listings"),
   STRIPE_SECRET_KEY: z.string().optional(),
   STRIPE_WEBHOOK_SECRET: z.string().optional(),
