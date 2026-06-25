@@ -77,31 +77,55 @@ export function LandlordSetupPage() {
         method: "PUT",
         token: accessToken,
         body: JSON.stringify({
-          fullName,
+          fullName: fullName.trim(),
           occupation,
-          currentCity,
+          currentCity: currentCity.trim() || undefined,
           targetCityId: targetCityId || undefined,
-          preferredArea,
-          phone: phone || undefined,
-          bio,
+          preferredArea: preferredArea.trim(),
+          phone: phone.trim(),
+          bio: bio.trim() || undefined,
         }),
       });
+    } catch (error) {
+      setMessage(
+        error instanceof Error
+          ? `Profile could not be saved: ${error.message}`
+          : "Profile could not be saved.",
+      );
+      setIsSubmitting(false);
+      return;
+    }
 
-      if (verificationDocumentUrl) {
+    if (verificationDocumentUrl.trim()) {
+      try {
         await apiFetch("/profile/verification", {
           method: "POST",
           token: accessToken,
           body: JSON.stringify({
-            documentUrl: verificationDocumentUrl,
-            notes: verificationNotes || undefined,
+            documentUrl: verificationDocumentUrl.trim(),
+            notes: verificationNotes.trim() || undefined,
           }),
         });
+      } catch (error) {
+        setMessage(
+          error instanceof Error
+            ? `Profile saved, but verification was not submitted: ${error.message}`
+            : "Profile saved, but verification was not submitted.",
+        );
+        setIsSubmitting(false);
+        return;
       }
+    }
 
+    try {
       await refreshUser();
       navigate("/landlord");
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Unable to complete landlord setup.");
+      setMessage(
+        error instanceof Error
+          ? `Profile saved, but the page could not refresh your session: ${error.message}`
+          : "Profile saved, but the page could not refresh your session.",
+      );
     } finally {
       setIsSubmitting(false);
     }

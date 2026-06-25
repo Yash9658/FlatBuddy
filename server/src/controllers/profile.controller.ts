@@ -81,23 +81,27 @@ export async function updateProfile(req: Request, res: Response) {
     return res.status(400).json({ message: "Move-in date cannot be before today." });
   }
 
-  const profile = await prisma.profile.upsert({
-    where: { userId: req.auth.userId },
-    update: payload,
-    create: {
-      ...payload,
-      userId: req.auth.userId,
-    },
-  });
-
   const currentPreference =
     req.auth.role === UserRole.TENANT ? await prisma.preference.findUnique({ where: { userId: req.auth.userId } }) : null;
 
-  await prisma.user.update({
-    where: { id: req.auth.userId },
-    data: {
-      isProfileComplete: computeProfileCompletion(req.auth.role, payload, currentPreference),
-    },
+  const profile = await prisma.$transaction(async (transaction) => {
+    const updatedProfile = await transaction.profile.upsert({
+      where: { userId: req.auth!.userId },
+      update: payload,
+      create: {
+        ...payload,
+        userId: req.auth!.userId,
+      },
+    });
+
+    await transaction.user.update({
+      where: { id: req.auth!.userId },
+      data: {
+        isProfileComplete: computeProfileCompletion(req.auth!.role, updatedProfile, currentPreference),
+      },
+    });
+
+    return updatedProfile;
   });
 
   return res.json(profile);
