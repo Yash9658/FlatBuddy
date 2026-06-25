@@ -1,10 +1,7 @@
 import type { Request, Response } from "express";
-import crypto from "node:crypto";
-import fs from "node:fs/promises";
-import path from "node:path";
 import multer from "multer";
 import { UserRole } from "@prisma/client";
-import { getUploadsBaseUrl, uploadsRoot } from "../lib/uploads.js";
+import { isCloudinaryConfigured, uploadListingImage } from "../lib/cloudinary.js";
 
 export const upload = multer({
   storage: multer.memoryStorage(),
@@ -28,20 +25,23 @@ export async function uploadImage(req: Request, res: Response) {
     return res.status(400).json({ message: "Image file is required." });
   }
 
+  if (!isCloudinaryConfigured()) {
+    return res.status(503).json({ message: "Cloud image storage is not configured." });
+  }
+
   const detectedImage = detectImageType(req.file.buffer);
 
   if (!detectedImage) {
     return res.status(400).json({ message: "Only valid JPEG, PNG, and WebP images are allowed." });
   }
 
-  const filename = `${crypto.randomUUID()}.${detectedImage.extension}`;
-  await fs.writeFile(path.join(uploadsRoot, filename), req.file.buffer, { flag: "wx" });
+  const uploadedImage = await uploadListingImage(req.file.buffer);
 
   return res.status(201).json({
-    url: `${getUploadsBaseUrl(req)}/uploads/${filename}`,
-    filename,
+    url: uploadedImage.secure_url,
+    filename: uploadedImage.public_id,
     originalName: req.file.originalname,
-    size: req.file.size,
+    size: uploadedImage.bytes,
   });
 }
 

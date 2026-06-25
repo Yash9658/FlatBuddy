@@ -59,6 +59,10 @@ npm run dev:client
 - `COOKIE_SECURE`
 - `COOKIE_SAME_SITE`
 - `PUBLIC_SERVER_URL`
+- `CLOUDINARY_CLOUD_NAME`
+- `CLOUDINARY_API_KEY`
+- `CLOUDINARY_API_SECRET`
+- `CLOUDINARY_FOLDER`
 - `GOOGLE_CLIENT_ID`
 - `GOOGLE_CLIENT_SECRET`
 - `GOOGLE_CALLBACK_URL`
@@ -122,7 +126,7 @@ npx prisma studio
 - Set production cookie settings correctly:
   - `COOKIE_SECURE=true`
   - `COOKIE_SAME_SITE=none` when frontend and backend are on different domains
-- Set `PUBLIC_SERVER_URL` so uploaded image URLs are stable in production
+- Configure Cloudinary so uploaded listing images persist across backend restarts and deployments
 - Update `GOOGLE_CALLBACK_URL` to your deployed backend URL
 - Update Stripe success, cancel, and portal return URLs for production
 - Run Prisma migrations against the hosted database before first launch

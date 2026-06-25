@@ -273,7 +273,7 @@ export function LandlordPage() {
         <span className="text-sm font-semibold uppercase tracking-[0.24em] text-primary">Landlord Workspace</span>
         <h1 className="text-3xl font-semibold tracking-tight">Help owners attract ready-made tenant groups</h1>
         <p className="max-w-3xl text-base leading-7 text-muted-foreground">
-          This workspace now covers listing creation, local image uploads, and visit coordination from one place.
+          This workspace now covers listing creation, persistent cloud image uploads, and visit coordination from one place.
         </p>
       </div>
 
