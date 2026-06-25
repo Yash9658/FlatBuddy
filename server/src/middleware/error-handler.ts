@@ -1,5 +1,6 @@
 import { Prisma } from "@prisma/client";
 import type { NextFunction, Request, Response } from "express";
+import multer from "multer";
 import { ZodError } from "zod";
 import { env } from "../config/env.js";
 
@@ -15,6 +16,12 @@ export function errorHandler(
     return res.status(400).json({
       message: firstIssue?.message ?? "Validation failed.",
       issues: error.flatten(),
+    });
+  }
+
+  if (error instanceof multer.MulterError) {
+    return res.status(400).json({
+      message: error.code === "LIMIT_FILE_SIZE" ? "Image must be 5 MB or smaller." : error.message,
     });
   }
 

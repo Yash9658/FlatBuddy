@@ -442,6 +442,8 @@ export async function markAllNotificationsRead(req: Request, res: Response) {
           status: "PENDING",
         },
         select: { id: true, createdAt: true },
+        orderBy: { createdAt: "desc" },
+        take: 5,
       }),
       prisma.groupInvitation.findMany({
         where: {
@@ -449,6 +451,8 @@ export async function markAllNotificationsRead(req: Request, res: Response) {
           status: "PENDING",
         },
         select: { id: true, createdAt: true },
+        orderBy: { createdAt: "desc" },
+        take: 5,
       }),
       prisma.chatParticipant.findMany({
         where: { userId },
@@ -460,6 +464,11 @@ export async function markAllNotificationsRead(req: Request, res: Response) {
                 take: 1,
               },
             },
+          },
+        },
+        orderBy: {
+          chat: {
+            updatedAt: "desc",
           },
         },
         take: 8,
@@ -475,6 +484,7 @@ export async function markAllNotificationsRead(req: Request, res: Response) {
           id: true,
           updatedAt: true,
         },
+        orderBy: { updatedAt: "desc" },
         take: 5,
       }),
       prisma.visitRequest.findMany({
@@ -488,12 +498,14 @@ export async function markAllNotificationsRead(req: Request, res: Response) {
           id: true,
           createdAt: true,
         },
+        orderBy: { createdAt: "desc" },
         take: 5,
       }),
       req.auth.role === UserRole.ADMIN
         ? prisma.report.findMany({
             where: { resolved: false },
             select: { id: true, createdAt: true },
+            orderBy: { createdAt: "desc" },
             take: 5,
           })
         : Promise.resolve([]),
@@ -507,6 +519,7 @@ export async function markAllNotificationsRead(req: Request, res: Response) {
               id: true,
               landlordVerificationRequestedAt: true,
             },
+            orderBy: { landlordVerificationRequestedAt: "desc" },
             take: 5,
           })
         : Promise.resolve([]),
@@ -519,6 +532,7 @@ export async function markAllNotificationsRead(req: Request, res: Response) {
           kind: true,
           createdAt: true,
         },
+        orderBy: { createdAt: "desc" },
         take: 10,
       }),
     ]);
@@ -616,8 +630,12 @@ export async function markAllNotificationsRead(req: Request, res: Response) {
     });
   }
 
+  const visibleNotifications = notifications
+    .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+    .slice(0, 25);
+
   await prisma.notificationRead.createMany({
-    data: notifications.map((notification) => ({
+    data: visibleNotifications.map((notification) => ({
       userId,
       notificationKey: notification.id,
       readAt: new Date(),

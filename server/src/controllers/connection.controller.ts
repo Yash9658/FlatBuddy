@@ -15,11 +15,16 @@ const updateConnectionSchema = z.object({
   status: z.enum(["ACCEPTED", "DECLINED"]),
 });
 
+const connectionListSchema = z.object({
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+});
+
 export async function listConnections(req: Request, res: Response) {
   if (!req.auth) {
     return res.status(401).json({ message: "Authentication required." });
   }
 
+  const { limit } = connectionListSchema.parse(req.query);
   const connections = await prisma.connectionRequest.findMany({
     where: {
       OR: [{ senderId: req.auth.userId }, { receiverId: req.auth.userId }],
@@ -52,6 +57,7 @@ export async function listConnections(req: Request, res: Response) {
       },
     },
     orderBy: { createdAt: "desc" },
+    take: limit,
   });
 
   return res.json(connections);
@@ -95,11 +101,27 @@ export async function createConnection(req: Request, res: Response) {
 
   const receiver = await prisma.user.findUnique({
     where: { id: payload.receiverId },
-    select: { id: true, role: true },
+    select: { id: true, role: true, isSuspended: true, isEmailVerified: true },
   });
 
-  if (!receiver || receiver.role !== UserRole.TENANT) {
+  if (
+    !receiver ||
+    receiver.role !== UserRole.TENANT ||
+    receiver.isSuspended ||
+    !receiver.isEmailVerified
+  ) {
     return res.status(404).json({ message: "Tenant partner not found." });
+  }
+
+  if (payload.cityId) {
+    const city = await prisma.city.findUnique({
+      where: { id: payload.cityId },
+      select: { id: true },
+    });
+
+    if (!city) {
+      return res.status(400).json({ message: "Selected city is not valid." });
+    }
   }
 
   const existing = await prisma.connectionRequest.findFirst({
@@ -177,6 +199,10 @@ export async function updateConnection(req: Request, res: Response) {
 
   if (connection.receiverId !== req.auth.userId && req.auth.role !== UserRole.ADMIN) {
     return res.status(403).json({ message: "Only the receiver can update this request." });
+  }
+
+  if (connection.status !== ConnectionStatus.PENDING) {
+    return res.status(409).json({ message: "This connection request has already been handled." });
   }
 
   const updated = await prisma.connectionRequest.update({

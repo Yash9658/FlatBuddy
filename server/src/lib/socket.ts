@@ -4,6 +4,7 @@ import { Server } from "socket.io";
 import type { Socket } from "socket.io";
 import { env } from "../config/env.js";
 import { verifyAccessToken } from "./jwt.js";
+import { prisma } from "./prisma.js";
 
 type AuthenticatedSocket = Socket & {
   data: {
@@ -26,7 +27,7 @@ export function setupSocketServer(server: HttpServer) {
     },
   });
 
-  io.use((socket, next) => {
+  io.use(async (socket, next) => {
     const token = socket.handshake.auth.token;
 
     if (typeof token !== "string" || !token) {
@@ -36,9 +37,19 @@ export function setupSocketServer(server: HttpServer) {
 
     try {
       const payload = verifyAccessToken(token);
+      const user = await prisma.user.findUnique({
+        where: { id: payload.sub },
+        select: { id: true, role: true, isSuspended: true },
+      });
+
+      if (!user || user.isSuspended) {
+        next(new Error("Socket account is unavailable."));
+        return;
+      }
+
       const typedSocket = socket as AuthenticatedSocket;
       typedSocket.data.userId = payload.sub;
-      typedSocket.data.role = payload.role;
+      typedSocket.data.role = user.role;
       next();
     } catch {
       next(new Error("Invalid socket token."));
@@ -53,9 +64,23 @@ export function setupSocketServer(server: HttpServer) {
       typedSocket.join(getUserRoom(userId));
     }
 
-    typedSocket.on("chat:join", (chatId: string) => {
-      if (typeof chatId === "string" && chatId) {
-        typedSocket.join(getChatRoom(chatId));
+    typedSocket.on("chat:join", async (chatId: string) => {
+      if (typeof chatId !== "string" || !chatId || !userId) {
+        return;
+      }
+
+      const membership = await prisma.chatParticipant.findUnique({
+        where: {
+          chatId_userId: {
+            chatId,
+            userId,
+          },
+        },
+        select: { id: true },
+      });
+
+      if (membership || typedSocket.data.role === "ADMIN") {
+        await typedSocket.join(getChatRoom(chatId));
       }
     });
 

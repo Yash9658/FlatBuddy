@@ -3,11 +3,17 @@ import type { Request, Response } from "express";
 import { z } from "zod";
 import { verifyAccessToken } from "../lib/jwt.js";
 import { prisma } from "../lib/prisma.js";
+import { publicPropertyOwnerSelect } from "../lib/public-selects.js";
 import {
   FREE_LANDLORD_ACTIVE_LISTING_LIMIT,
   getSubscriptionAccess,
   hasPlanAccess,
 } from "../lib/subscriptions.js";
+
+const httpUrlSchema = z.string().url().refine((value) => {
+  const protocol = new URL(value).protocol;
+  return protocol === "http:" || protocol === "https:";
+}, "Image URLs must use HTTP or HTTPS.");
 
 const propertyInputSchema = z.object({
   cityId: z.string().min(1),
@@ -27,7 +33,7 @@ const propertyInputSchema = z.object({
   preferredTenants: z.array(z.string()).default([]),
   latitude: z.number().optional(),
   longitude: z.number().optional(),
-  images: z.array(z.string().url()).default([]),
+  images: z.array(httpUrlSchema).max(12).default([]),
 });
 
 const propertyFilterSchema = z.object({
@@ -35,6 +41,7 @@ const propertyFilterSchema = z.object({
   minRent: z.coerce.number().optional(),
   maxRent: z.coerce.number().optional(),
   type: z.nativeEnum(PropertyType).optional(),
+  limit: z.coerce.number().int().min(1).max(100).default(50),
 });
 
 function startOfDay(date: Date) {
@@ -73,6 +80,9 @@ export async function listProperties(req: Request, res: Response) {
   const properties = await prisma.property.findMany({
     where: {
       status: ListingStatus.ACTIVE,
+      owner: {
+        isSuspended: false,
+      },
       city: filters.city ? { slug: filters.city } : undefined,
       monthlyRent: {
         gte: filters.minRent,
@@ -86,20 +96,11 @@ export async function listProperties(req: Request, res: Response) {
         orderBy: { sortOrder: "asc" },
       },
       owner: {
-        select: {
-          id: true,
-          role: true,
-          profile: true,
-          subscription: {
-            select: {
-              plan: true,
-              status: true,
-            },
-          },
-        },
+        select: publicPropertyOwnerSelect,
       },
     },
     orderBy: { createdAt: "desc" },
+    take: filters.limit,
   });
 
   const sortedProperties = properties
@@ -122,7 +123,11 @@ export async function createProperty(req: Request, res: Response) {
   }
 
   if (req.auth.role === UserRole.LANDLORD) {
-    const [subscriptionAccess, liveListingCount] = await Promise.all([
+    const [landlord, subscriptionAccess, liveListingCount] = await Promise.all([
+      prisma.user.findUnique({
+        where: { id: req.auth.userId },
+        select: { landlordVerificationStatus: true },
+      }),
       getSubscriptionAccess(req.auth.userId),
       prisma.property.count({
         where: {
@@ -133,6 +138,12 @@ export async function createProperty(req: Request, res: Response) {
         },
       }),
     ]);
+
+    if (landlord?.landlordVerificationStatus !== "APPROVED") {
+      return res.status(403).json({
+        message: "Landlord verification must be approved before publishing a property.",
+      });
+    }
 
     if (
       !subscriptionAccess.hasLandlordPro &&
@@ -145,6 +156,23 @@ export async function createProperty(req: Request, res: Response) {
   }
 
   const payload = propertyInputSchema.parse(req.body);
+
+  if (payload.availableBeds > payload.totalBeds) {
+    return res.status(400).json({ message: "Available beds cannot exceed total beds." });
+  }
+
+  if (payload.availableFrom < startOfDay(new Date())) {
+    return res.status(400).json({ message: "Availability date cannot be before today." });
+  }
+
+  const city = await prisma.city.findUnique({
+    where: { id: payload.cityId },
+    select: { id: true },
+  });
+
+  if (!city) {
+    return res.status(400).json({ message: "Selected city is not valid." });
+  }
 
   const property = await prisma.property.create({
     data: {
@@ -239,18 +267,7 @@ export async function getPropertyById(req: Request, res: Response) {
         orderBy: { sortOrder: "asc" },
       },
       owner: {
-        select: {
-          id: true,
-          email: true,
-          role: true,
-          profile: true,
-          subscription: {
-            select: {
-              plan: true,
-              status: true,
-            },
-          },
-        },
+          select: publicPropertyOwnerSelect,
       },
       _count: {
         select: {
@@ -295,18 +312,7 @@ export async function getPropertyById(req: Request, res: Response) {
         orderBy: { sortOrder: "asc" },
       },
       owner: {
-        select: {
-          id: true,
-          email: true,
-          role: true,
-          profile: true,
-          subscription: {
-            select: {
-              plan: true,
-              status: true,
-            },
-          },
-        },
+          select: publicPropertyOwnerSelect,
       },
     },
     take: 3,

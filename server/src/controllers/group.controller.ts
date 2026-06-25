@@ -210,6 +210,17 @@ export async function createGroup(req: Request, res: Response) {
   const payload = createGroupSchema.parse(req.body);
   const uniqueMemberIds = [...new Set([auth.userId, ...payload.memberIds])];
 
+  if (payload.cityId) {
+    const city = await prisma.city.findUnique({
+      where: { id: payload.cityId },
+      select: { id: true },
+    });
+
+    if (!city) {
+      return res.status(400).json({ message: "Selected city is not valid." });
+    }
+  }
+
   const connections = await prisma.connectionRequest.findMany({
     where: {
       status: "ACCEPTED",
@@ -251,7 +262,7 @@ export async function createGroup(req: Request, res: Response) {
       cityId: payload.cityId,
       name: payload.name,
       description: payload.description,
-      planningNotes: payload.description,
+      planningNotes: null,
       members: {
         create: {
           userId: auth.userId,
@@ -305,8 +316,8 @@ export async function updateGroupPlan(req: Request, res: Response) {
   const groupId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const membership = await getGroupMembership(groupId, req.auth.userId);
 
-  if (!membership && req.auth.role !== UserRole.ADMIN) {
-    return res.status(403).json({ message: "You are not part of this group." });
+  if ((!membership || !membership.isLeader) && req.auth.role !== UserRole.ADMIN) {
+    return res.status(403).json({ message: "Only the group leader can update the group plan." });
   }
 
   const payload = updateGroupPlanSchema.parse(req.body);
@@ -634,8 +645,8 @@ export async function removeGroupShortlist(req: Request, res: Response) {
   const propertyId = Array.isArray(req.params.propertyId) ? req.params.propertyId[0] : req.params.propertyId;
   const membership = await getGroupMembership(groupId, req.auth.userId);
 
-  if (!membership && req.auth.role !== UserRole.ADMIN) {
-    return res.status(403).json({ message: "You are not part of this group." });
+  if ((!membership || !membership.isLeader) && req.auth.role !== UserRole.ADMIN) {
+    return res.status(403).json({ message: "Only the group leader can remove shortlisted properties." });
   }
 
   await prisma.groupShortlistedProperty.delete({

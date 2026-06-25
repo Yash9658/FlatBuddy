@@ -9,7 +9,6 @@ export function AuthCallbackPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { clearError, completeOAuth } = useAuth();
-  const token = searchParams.get("token");
   const error = searchParams.get("error");
 
   useEffect(() => {
@@ -17,12 +16,12 @@ export function AuthCallbackPage() {
     let timeout = 0;
 
     async function finishOAuth() {
-      if (!token || error) {
+      if (error) {
         return;
       }
 
       try {
-        const currentUser = await completeOAuth(token);
+        const currentUser = await completeOAuth();
         timeout = window.setTimeout(() => {
           navigate(getPostAuthRoute(currentUser), { replace: true });
         }, 1200);
@@ -34,20 +33,20 @@ export function AuthCallbackPage() {
     void finishOAuth();
 
     return () => window.clearTimeout(timeout);
-  }, [clearError, completeOAuth, error, navigate, token]);
+  }, [clearError, completeOAuth, error, navigate]);
 
-  if (!token || error) {
+  if (error) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
         <Card className="max-w-lg">
           <CardHeader>
             <CardTitle>Google sign-in could not be completed</CardTitle>
             <CardDescription>
-              OAuth finished without a valid access token, or Google returned an error back to FlatBuddy.
+              Google returned an error before FlatBuddy could complete your session.
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-4 text-sm leading-7 text-muted-foreground">
-            <p>{error ? `Reason: ${error}` : "Please try again from the login page."}</p>
+            <p>{`Reason: ${error}`}</p>
             <Button onClick={() => navigate("/login")} type="button">
               Back to login
             </Button>

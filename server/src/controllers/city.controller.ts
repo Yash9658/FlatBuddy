@@ -1,6 +1,7 @@
 import type { Request, Response } from "express";
 import { citySeeds } from "../data/cities.js";
 import { prisma } from "../lib/prisma.js";
+import { publicPropertyOwnerSelect, publicTenantSelect } from "../lib/public-selects.js";
 import { hasPlanAccess } from "../lib/subscriptions.js";
 
 export async function listCities(_req: Request, res: Response) {
@@ -64,23 +65,15 @@ export async function getCityOverview(req: Request, res: Response) {
     prisma.user.findMany({
       where: {
         role: "TENANT",
+        isEmailVerified: true,
+        isSuspended: false,
         profile: {
           is: {
             targetCityId: city.id,
           },
         },
       },
-      select: {
-        id: true,
-        email: true,
-        role: true,
-        profile: {
-          include: {
-            targetCity: true,
-          },
-        },
-        preference: true,
-      },
+      select: publicTenantSelect,
       take: 6,
       orderBy: {
         createdAt: "desc",
@@ -91,6 +84,9 @@ export async function getCityOverview(req: Request, res: Response) {
       where: {
         cityId: city.id,
         status: "ACTIVE",
+        owner: {
+          isSuspended: false,
+        },
       },
       include: {
         city: true,
@@ -98,18 +94,7 @@ export async function getCityOverview(req: Request, res: Response) {
           orderBy: { sortOrder: "asc" },
         },
         owner: {
-          select: {
-            id: true,
-            email: true,
-            role: true,
-            profile: true,
-            subscription: {
-              select: {
-                plan: true,
-                status: true,
-              },
-            },
-          },
+          select: publicPropertyOwnerSelect,
         },
       },
       orderBy: [{ createdAt: "desc" }],

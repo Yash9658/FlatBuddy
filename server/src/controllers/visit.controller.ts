@@ -10,8 +10,12 @@ const createVisitSchema = z.object({
 });
 
 const updateVisitSchema = z.object({
-  status: z.nativeEnum(VisitRequestStatus),
+  status: z.enum([VisitRequestStatus.APPROVED, VisitRequestStatus.DECLINED]),
   landlordMessage: z.string().max(240).optional(),
+});
+
+const visitListSchema = z.object({
+  limit: z.coerce.number().int().min(1).max(100).default(50),
 });
 
 export async function listVisits(req: Request, res: Response) {
@@ -19,6 +23,7 @@ export async function listVisits(req: Request, res: Response) {
     return res.status(401).json({ message: "Authentication required." });
   }
 
+  const { limit } = visitListSchema.parse(req.query);
   const visits = await prisma.visitRequest.findMany({
     where:
       req.auth.role === UserRole.LANDLORD
@@ -60,6 +65,7 @@ export async function listVisits(req: Request, res: Response) {
       },
     },
     orderBy: [{ status: "asc" }, { requestedDate: "asc" }],
+    take: limit,
   });
 
   return res.json(visits);
@@ -76,6 +82,10 @@ export async function createVisitRequest(req: Request, res: Response) {
 
   const payload = createVisitSchema.parse(req.body);
 
+  if (payload.requestedDate <= new Date()) {
+    return res.status(400).json({ message: "Visit date must be in the future." });
+  }
+
   const property = await prisma.property.findUnique({
     where: { id: payload.propertyId },
     select: { id: true, ownerId: true, status: true },
@@ -83,6 +93,14 @@ export async function createVisitRequest(req: Request, res: Response) {
 
   if (!property) {
     return res.status(404).json({ message: "Property not found." });
+  }
+
+  if (property.status !== "ACTIVE") {
+    return res.status(409).json({ message: "Visits can only be requested for active properties." });
+  }
+
+  if (property.ownerId === req.auth.userId) {
+    return res.status(400).json({ message: "You cannot request a visit for your own property." });
   }
 
   const existing = await prisma.visitRequest.findFirst({
@@ -167,6 +185,10 @@ export async function updateVisitRequest(req: Request, res: Response) {
 
   if (visit.property.ownerId !== req.auth.userId && req.auth.role !== UserRole.ADMIN) {
     return res.status(403).json({ message: "Only the property owner can update this visit request." });
+  }
+
+  if (visit.status !== VisitRequestStatus.PENDING) {
+    return res.status(409).json({ message: "This visit request has already been handled." });
   }
 
   const updated = await prisma.visitRequest.update({

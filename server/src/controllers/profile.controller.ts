@@ -3,7 +3,13 @@ import type { Request, Response } from "express";
 import { z } from "zod";
 import { computeProfileCompletion } from "../lib/profile-completion.js";
 import { prisma } from "../lib/prisma.js";
+import { publicTenantSelect } from "../lib/public-selects.js";
 import { buildMatchInsights, calculateCompatibilityScore, getSharedInterests } from "../utils/compatibility.js";
+
+const httpUrlSchema = z.string().url().refine((value) => {
+  const protocol = new URL(value).protocol;
+  return protocol === "http:" || protocol === "https:";
+}, "URL must use HTTP or HTTPS.");
 
 const profileSchema = z.object({
   fullName: z.string().min(2),
@@ -18,7 +24,7 @@ const profileSchema = z.object({
   budgetMin: z.coerce.number().optional(),
   budgetMax: z.coerce.number().optional(),
   moveInDate: z.coerce.date().optional(),
-  avatarUrl: z.string().url().optional(),
+  avatarUrl: httpUrlSchema.optional(),
   phone: z.string().optional(),
 });
 
@@ -36,7 +42,7 @@ const preferenceSchema = z.object({
 });
 
 const verificationRequestSchema = z.object({
-  documentUrl: z.string().url(),
+  documentUrl: httpUrlSchema,
   notes: z.string().trim().max(400).optional(),
 });
 
@@ -197,19 +203,8 @@ export async function getUserProfileDetail(req: Request, res: Response) {
       },
     }),
     prisma.user.findUnique({
-      where: { id: userId },
-      select: {
-        id: true,
-        email: true,
-        role: true,
-        profile: {
-          include: {
-            targetCity: true,
-          },
-        },
-        preference: true,
-        createdAt: true,
-      },
+      where: { id: userId, isSuspended: false, isEmailVerified: true },
+      select: publicTenantSelect,
     }),
     prisma.connectionRequest.findFirst({
       where: {

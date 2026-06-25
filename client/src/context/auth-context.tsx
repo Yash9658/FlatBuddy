@@ -27,7 +27,7 @@ type AuthContextValue = {
   login: (email: string, password: string) => Promise<AuthUser>;
   register: (payload: RegisterPayload) => Promise<{ message: string; email: string }>;
   logout: () => Promise<void>;
-  completeOAuth: (token: string) => Promise<AuthUser>;
+  completeOAuth: () => Promise<AuthUser>;
   updateRoleSelection: (role: UserRole) => Promise<AuthUser>;
   refreshUser: () => Promise<void>;
   getOAuthUrl: (role?: UserRole) => string;
@@ -35,8 +35,6 @@ type AuthContextValue = {
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
-
-const storageKey = "flatbuddy_access_token";
 
 async function loadCurrentUser(token: string) {
   return apiFetch<AuthUser>("/auth/me", {
@@ -46,9 +44,7 @@ async function loadCurrentUser(token: string) {
 }
 
 export function AuthProvider({ children }: PropsWithChildren) {
-  const [accessToken, setAccessToken] = useState<string | null>(
-    () => sessionStorage.getItem(storageKey) ?? null,
-  );
+  const [accessToken, setAccessToken] = useState<string | null>(null);
   const [user, setUser] = useState<AuthUser | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -56,7 +52,6 @@ export function AuthProvider({ children }: PropsWithChildren) {
   const refreshRequestRef = useRef<Promise<string | null> | null>(null);
 
   function clearSessionState() {
-    sessionStorage.removeItem(storageKey);
     setAccessToken(null);
     setUser(null);
   }
@@ -68,7 +63,6 @@ export function AuthProvider({ children }: PropsWithChildren) {
         skipAuthRefresh: true,
       })
         .then((response) => {
-          sessionStorage.setItem(storageKey, response.accessToken);
           setAccessToken(response.accessToken);
           setUser(response.user);
           setError(null);
@@ -120,35 +114,12 @@ export function AuthProvider({ children }: PropsWithChildren) {
           }
         }
 
-        const token = sessionStorage.getItem(storageKey);
-
-        if (token) {
-          try {
-            const currentUser = await loadCurrentUser(token);
-            if (!ignore) {
-              setAccessToken(token);
-              setUser(currentUser);
-            }
-            return;
-          } catch (authError) {
-            if (!(authError instanceof ApiError && (authError.status === 401 || authError.status === 403 || authError.status === 404))) {
-              throw authError;
-            }
-
-            clearSessionState();
-            if (!ignore) {
-              setError(authError.message);
-            }
-          }
-        }
-
         const refreshResponse = await apiFetch<{ accessToken: string; user: AuthUser }>("/auth/refresh", {
           method: "POST",
           skipAuthRefresh: true,
         });
 
         if (!ignore) {
-          sessionStorage.setItem(storageKey, refreshResponse.accessToken);
           setAccessToken(refreshResponse.accessToken);
           setUser(refreshResponse.user);
         }
@@ -198,7 +169,6 @@ export function AuthProvider({ children }: PropsWithChildren) {
             body: JSON.stringify({ email, password }),
           });
 
-          sessionStorage.setItem(storageKey, response.accessToken);
           setAccessToken(response.accessToken);
           const currentUser = await loadCurrentUser(response.accessToken);
           setUser(currentUser);
@@ -223,14 +193,16 @@ export function AuthProvider({ children }: PropsWithChildren) {
           throw authError;
         }
       },
-      completeOAuth: async (token) => {
+      completeOAuth: async () => {
         try {
-          sessionStorage.setItem(storageKey, token);
-          setAccessToken(token);
-          const currentUser = await loadCurrentUser(token);
-          setUser(currentUser);
+          const response = await apiFetch<{ accessToken: string; user: AuthUser }>("/auth/refresh", {
+            method: "POST",
+            skipAuthRefresh: true,
+          });
+          setAccessToken(response.accessToken);
+          setUser(response.user);
           setError(null);
-          return currentUser;
+          return response.user;
         } catch (authError) {
           setError(authError instanceof Error ? authError.message : "Unable to complete sign-in.");
           throw authError;
@@ -262,7 +234,6 @@ export function AuthProvider({ children }: PropsWithChildren) {
           token: accessToken,
           skipAuthRefresh: true,
         });
-        sessionStorage.removeItem(storageKey);
         setAccessToken(null);
         setUser(null);
       },

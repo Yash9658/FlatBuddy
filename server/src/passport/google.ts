@@ -4,19 +4,20 @@ import type { Request } from "express";
 import type { Profile as GoogleProfile, VerifyCallback } from "passport-google-oauth20";
 import { Strategy as GoogleStrategy } from "passport-google-oauth20";
 import { env } from "../config/env.js";
+import { isGoogleOAuthConfigured } from "../lib/google-oauth.js";
 import { prisma } from "../lib/prisma.js";
 
 export function configureGooglePassport() {
-  if (!env.GOOGLE_CLIENT_ID || !env.GOOGLE_CLIENT_SECRET || !env.GOOGLE_CALLBACK_URL) {
+  if (!isGoogleOAuthConfigured()) {
     return;
   }
 
   passport.use(
     new GoogleStrategy(
       {
-        clientID: env.GOOGLE_CLIENT_ID,
-        clientSecret: env.GOOGLE_CLIENT_SECRET,
-        callbackURL: env.GOOGLE_CALLBACK_URL,
+        clientID: env.GOOGLE_CLIENT_ID!,
+        clientSecret: env.GOOGLE_CLIENT_SECRET!,
+        callbackURL: env.GOOGLE_CALLBACK_URL!,
         passReqToCallback: true,
       },
       async (
@@ -33,7 +34,7 @@ export function configureGooglePassport() {
             return done(new Error("Google account did not provide an email address."));
           }
 
-          const requestedRole = parseGoogleRole(req.query.state);
+          const requestedRole = parseGoogleRole(req.cookies.flatbuddy_google_role);
           const existingUser =
             (await prisma.user.findUnique({ where: { googleId: profile.id } })) ??
             (await prisma.user.findUnique({ where: { email: email.toLowerCase() } }));

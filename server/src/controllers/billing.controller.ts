@@ -37,14 +37,14 @@ export async function createCheckoutSession(req: Request, res: Response) {
   }
 
   const payload = checkoutSchema.parse(req.body);
-  const stripe = getStripeClient();
   const priceId =
     payload.plan === "TENANT_PRO" ? env.STRIPE_PRICE_TENANT_PRO : env.STRIPE_PRICE_LANDLORD_PRO;
 
-  if (!priceId || !env.STRIPE_BILLING_SUCCESS_URL || !env.STRIPE_BILLING_CANCEL_URL) {
+  if (!env.STRIPE_SECRET_KEY || !priceId || !env.STRIPE_BILLING_SUCCESS_URL || !env.STRIPE_BILLING_CANCEL_URL) {
     return res.status(503).json({ message: "Stripe billing is not fully configured." });
   }
 
+  const stripe = getStripeClient();
   if (!isPlanAllowedForRole(payload.plan, req.auth.role)) {
     return res.status(403).json({
       message: getIncompatiblePlanMessage(req.auth.role, payload.plan),
@@ -159,7 +159,7 @@ export async function createPortalSession(req: Request, res: Response) {
     return res.status(401).json({ message: "Authentication required." });
   }
 
-  if (!env.STRIPE_PORTAL_RETURN_URL) {
+  if (!env.STRIPE_SECRET_KEY || !env.STRIPE_PORTAL_RETURN_URL) {
     return res.status(503).json({ message: "Stripe portal is not fully configured." });
   }
 
@@ -236,7 +236,7 @@ export async function updateSubscriptionCancellation(req: Request, res: Response
 }
 
 export async function handleStripeWebhook(req: Request, res: Response) {
-  if (!env.STRIPE_WEBHOOK_SECRET) {
+  if (!env.STRIPE_SECRET_KEY || !env.STRIPE_WEBHOOK_SECRET) {
     return res.status(503).json({ message: "Stripe webhook is not configured." });
   }
 

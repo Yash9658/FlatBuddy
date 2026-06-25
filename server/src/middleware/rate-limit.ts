@@ -7,6 +7,15 @@ type RateLimitOptions = {
 };
 
 const requestStore = new Map<string, { count: number; resetAt: number }>();
+const cleanupTimer = setInterval(() => {
+  const now = Date.now();
+  for (const [key, entry] of requestStore) {
+    if (entry.resetAt <= now) {
+      requestStore.delete(key);
+    }
+  }
+}, 5 * 60 * 1000);
+cleanupTimer.unref();
 
 export function createRateLimit({ windowMs, maxRequests, keyPrefix }: RateLimitOptions) {
   return (req: Request, res: Response, next: NextFunction) => {

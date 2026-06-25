@@ -1,5 +1,6 @@
 import { AuthProvider, OccupationType, UserRole } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import crypto from "node:crypto";
 import type { Request, RequestHandler, Response } from "express";
 import passport from "passport";
 import { z } from "zod";
@@ -8,6 +9,7 @@ import { getRefreshCookieOptions, refreshCookieName } from "../lib/cookies.js";
 import { buildVerificationUrl, createEmailVerificationToken } from "../lib/email-verification.js";
 import { sendVerificationEmail } from "../lib/email.js";
 import { hashToken, signAccessToken, signRefreshToken, verifyRefreshToken } from "../lib/jwt.js";
+import { isGoogleOAuthConfigured } from "../lib/google-oauth.js";
 import { computeProfileCompletion } from "../lib/profile-completion.js";
 import { prisma } from "../lib/prisma.js";
 
@@ -192,7 +194,11 @@ export async function login(req: Request, res: Response) {
     where: { email: payload.email.toLowerCase() },
   });
 
-  if (!user?.passwordHash) {
+  const isValid = user?.passwordHash
+    ? await bcrypt.compare(payload.password, user.passwordHash)
+    : false;
+
+  if (!user || !isValid) {
     return res.status(401).json({ message: "Invalid email or password." });
   }
 
@@ -202,12 +208,6 @@ export async function login(req: Request, res: Response) {
 
   if (user.authProvider === AuthProvider.LOCAL && !user.isEmailVerified) {
     return res.status(403).json({ message: "Verify your email before logging in." });
-  }
-
-  const isValid = await bcrypt.compare(payload.password, user.passwordHash);
-
-  if (!isValid) {
-    return res.status(401).json({ message: "Invalid email or password." });
   }
 
   const { accessToken, refreshToken } = buildAuthResponse(user);
@@ -368,8 +368,16 @@ export async function getMe(req: Request, res: Response) {
   return res.json(user);
 }
 
-const googleOAuthConfigured =
-  Boolean(env.GOOGLE_CLIENT_ID) && Boolean(env.GOOGLE_CLIENT_SECRET) && Boolean(env.GOOGLE_CALLBACK_URL);
+const googleOAuthConfigured = isGoogleOAuthConfigured();
+const googleStateCookieName = "flatbuddy_google_state";
+const googleRoleCookieName = "flatbuddy_google_role";
+const googleCookieOptions = {
+  httpOnly: true,
+  secure: env.COOKIE_SECURE,
+  sameSite: "lax" as const,
+  path: "/api/auth/google",
+  maxAge: 10 * 60 * 1000,
+};
 
 const googleUnavailable: RequestHandler = (_req, res) => {
   res.status(503).json({
@@ -381,32 +389,48 @@ export const googleAuth: RequestHandler = googleOAuthConfigured
   ? (req, res, next) => {
       const requestedRole = req.query.role;
       const role = requestedRole === UserRole.LANDLORD ? UserRole.LANDLORD : UserRole.TENANT;
+      const state = crypto.randomBytes(32).toString("base64url");
+
+      res.cookie(googleStateCookieName, state, googleCookieOptions);
+      res.cookie(googleRoleCookieName, role, googleCookieOptions);
 
       passport.authenticate("google", {
         scope: ["profile", "email"],
         session: false,
-        state: role,
+        state,
       })(req, res, next);
     }
   : googleUnavailable;
 
 export const googleCallback: RequestHandler[] = googleOAuthConfigured
   ? [
+      (req, res, next) => {
+        const returnedState = typeof req.query.state === "string" ? req.query.state : "";
+        const storedState = req.cookies[googleStateCookieName];
+        res.clearCookie(googleStateCookieName, googleCookieOptions);
+
+        if (
+          typeof storedState !== "string" ||
+          storedState.length !== returnedState.length ||
+          !crypto.timingSafeEqual(Buffer.from(storedState), Buffer.from(returnedState))
+        ) {
+          res.clearCookie(googleRoleCookieName, googleCookieOptions);
+          return res.redirect(`${env.CLIENT_URL}/login?error=google_state_invalid`);
+        }
+
+        return next();
+      },
       passport.authenticate("google", {
         session: false,
         failureRedirect: `${env.CLIENT_URL}/login?error=google_auth_failed`,
       }),
       async (req: Request, res: Response) => {
         const passportUser = req.user as { id: string; role: UserRole; email: string };
-        const { accessToken, refreshToken } = buildAuthResponse(passportUser);
+        const { refreshToken } = buildAuthResponse(passportUser);
         await persistRefreshToken(passportUser.id, refreshToken);
         res.cookie(refreshCookieName, refreshToken, getRefreshCookieOptions());
-
-        const redirectParams = new URLSearchParams({
-          token: accessToken,
-        });
-
-        return res.redirect(`${env.CLIENT_URL}/auth/callback?${redirectParams.toString()}`);
+        res.clearCookie(googleRoleCookieName, googleCookieOptions);
+        return res.redirect(`${env.CLIENT_URL}/auth/callback`);
       },
     ]
   : [googleUnavailable];

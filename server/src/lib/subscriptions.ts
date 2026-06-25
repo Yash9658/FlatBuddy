@@ -4,8 +4,6 @@ import { prisma } from "./prisma.js";
 const entitledStatuses: SubscriptionStatus[] = [
   SubscriptionStatus.ACTIVE,
   SubscriptionStatus.TRIALING,
-  SubscriptionStatus.PAST_DUE,
-  SubscriptionStatus.PAUSED,
 ];
 
 export const FREE_TENANT_PENDING_REQUEST_LIMIT = 3;

@@ -2,6 +2,7 @@ import { OccupationType } from "@prisma/client";
 import type { Request, Response } from "express";
 import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
+import { publicTenantSelect } from "../lib/public-selects.js";
 import { getSubscriptionAccess } from "../lib/subscriptions.js";
 import { buildMatchInsights, calculateCompatibilityScore } from "../utils/compatibility.js";
 
@@ -44,6 +45,8 @@ export async function listPotentialMatches(req: Request, res: Response) {
     where: {
       id: { not: currentUser.id },
       role: "TENANT",
+      isEmailVerified: true,
+      isSuspended: false,
       profile: {
         is: {
           targetCityId: currentUser.profile.targetCityId,
@@ -51,10 +54,7 @@ export async function listPotentialMatches(req: Request, res: Response) {
         },
       },
     },
-    include: {
-      profile: true,
-      preference: true,
-    },
+    select: publicTenantSelect,
     take: 24,
   });
 

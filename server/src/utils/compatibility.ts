@@ -1,8 +1,23 @@
-import type { Preference, Profile } from "@prisma/client";
+import type {
+  DrinkingPreference,
+  FoodPreference,
+  SmokingPreference,
+} from "@prisma/client";
 
 type UserForMatching = {
-  profile: Profile | null;
-  preference: Preference | null;
+  profile: {
+    targetCityId: string | null;
+    budgetMin: number | null;
+    budgetMax: number | null;
+    preferredArea: string | null;
+    moveInDate: Date | null;
+  } | null;
+  preference: {
+    foodPreference: FoodPreference;
+    smokingPreference: SmokingPreference;
+    drinkingPreference: DrinkingPreference;
+    interests: string[];
+  } | null;
 };
 
 export function getSharedInterests(current: UserForMatching, candidate: UserForMatching) {

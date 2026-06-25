@@ -5,7 +5,11 @@ import { prisma } from "../lib/prisma.js";
 import { getChatRoom, getIo, getUserRoom } from "../lib/socket.js";
 
 const messageSchema = z.object({
-  body: z.string().min(1).max(1000),
+  body: z.string().trim().min(1).max(1000),
+});
+
+const chatListSchema = z.object({
+  limit: z.coerce.number().int().min(1).max(100).default(50),
 });
 
 export async function listChats(req: Request, res: Response) {
@@ -13,6 +17,7 @@ export async function listChats(req: Request, res: Response) {
     return res.status(401).json({ message: "Authentication required." });
   }
 
+  const { limit } = chatListSchema.parse(req.query);
   const chats = await prisma.chat.findMany({
     where: {
       participants: {
@@ -44,6 +49,7 @@ export async function listChats(req: Request, res: Response) {
       },
     },
     orderBy: { updatedAt: "desc" },
+    take: limit,
   });
 
   const chatsWithUnread = await Promise.all(
