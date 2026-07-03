@@ -43,6 +43,19 @@ async function loadCurrentUser(token: string) {
   });
 }
 
+function isExpectedLoggedOutError(error: unknown) {
+  return (
+    error instanceof ApiError &&
+    error.status === 401 &&
+    [
+      "Refresh token missing.",
+      "Invalid refresh token.",
+      "Refresh token is no longer valid.",
+      "Authentication required.",
+    ].includes(error.message)
+  );
+}
+
 export function AuthProvider({ children }: PropsWithChildren) {
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [user, setUser] = useState<AuthUser | null>(null);
@@ -70,7 +83,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
         })
         .catch((authError) => {
           clearSessionState();
-          if (authError instanceof ApiError && authError.status === 403) {
+          if (!isExpectedLoggedOutError(authError) && authError instanceof ApiError && authError.status === 403) {
             setError(authError.message);
           }
           return null;
@@ -126,7 +139,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
       } catch (authError) {
         if (authError instanceof ApiError && (authError.status === 401 || authError.status === 403 || authError.status === 404)) {
           clearSessionState();
-          if (!ignore && authError.status === 403) {
+          if (!ignore && authError.status === 403 && !isExpectedLoggedOutError(authError)) {
             setError(authError.message);
           }
           return;
