@@ -372,9 +372,10 @@ export async function getMe(req: Request, res: Response) {
 const googleOAuthConfigured = isGoogleOAuthConfigured();
 const googleStateCookieName = "flatbuddy_google_state";
 const googleRoleCookieName = "flatbuddy_google_role";
+const googleCookieSecure = env.COOKIE_SECURE || env.NODE_ENV === "production";
 const googleCookieOptions = {
   httpOnly: true,
-  secure: env.COOKIE_SECURE,
+  secure: googleCookieSecure,
   sameSite: "lax" as const,
   path: "/api/auth/google",
   maxAge: 10 * 60 * 1000,
