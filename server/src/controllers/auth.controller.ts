@@ -1,7 +1,7 @@
 import { AuthProvider, OccupationType, UserRole } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import crypto from "node:crypto";
-import type { Request, RequestHandler, Response } from "express";
+import type { NextFunction, Request, RequestHandler, Response } from "express";
 import passport from "passport";
 import { z } from "zod";
 import { env } from "../config/env.js";
@@ -212,7 +212,7 @@ export async function login(req: Request, res: Response) {
   }
 
   const { accessToken, refreshToken } = buildAuthResponse(user);
-  await persistRefreshToken(user.id, refreshToken);
+  await withPrismaReconnectRetry(() => persistRefreshToken(user.id, refreshToken));
   res.cookie(refreshCookieName, refreshToken, getRefreshCookieOptions());
 
   return res.json({
@@ -421,19 +421,41 @@ export const googleCallback: RequestHandler[] = googleOAuthConfigured
 
         return next();
       },
-      passport.authenticate("google", {
-        session: false,
-        failureRedirect: `${env.CLIENT_URL}/login?error=google_auth_failed`,
-      }),
+      (req: Request, res: Response, next: NextFunction) => {
+        passport.authenticate(
+          "google",
+          { session: false },
+          (error: Error | null, user: Express.User | false, info: unknown) => {
+            if (error) {
+              console.error("Google OAuth authentication failed.", error);
+              return res.redirect(`${env.CLIENT_URL}/login?error=google_auth_failed`);
+            }
+
+            if (!user) {
+              console.warn("Google OAuth did not return a user.", info);
+              return res.redirect(`${env.CLIENT_URL}/login?error=google_auth_failed`);
+            }
+
+            req.user = user;
+            return next();
+          },
+        )(req, res, next);
+      },
       async (req: Request, res: Response) => {
-        const passportUser = req.user as { id: string; role: UserRole; email: string };
-        const { accessToken, refreshToken } = buildAuthResponse(passportUser);
-        await withPrismaReconnectRetry(() => persistRefreshToken(passportUser.id, refreshToken));
-        res.cookie(refreshCookieName, refreshToken, getRefreshCookieOptions());
-        res.clearCookie(googleRoleCookieName, googleCookieOptions);
-        const callbackUrl = new URL("/auth/callback", env.CLIENT_URL);
-        callbackUrl.hash = new URLSearchParams({ access_token: accessToken }).toString();
-        return res.redirect(callbackUrl.toString());
+        try {
+          const passportUser = req.user as { id: string; role: UserRole; email: string };
+          const { accessToken, refreshToken } = buildAuthResponse(passportUser);
+          await withPrismaReconnectRetry(() => persistRefreshToken(passportUser.id, refreshToken));
+          res.cookie(refreshCookieName, refreshToken, getRefreshCookieOptions());
+          res.clearCookie(googleRoleCookieName, googleCookieOptions);
+          const callbackUrl = new URL("/auth/callback", env.CLIENT_URL);
+          callbackUrl.hash = new URLSearchParams({ access_token: accessToken }).toString();
+          return res.redirect(callbackUrl.toString());
+        } catch (error) {
+          console.error("Google OAuth session creation failed.", error);
+          res.clearCookie(googleRoleCookieName, googleCookieOptions);
+          return res.redirect(`${env.CLIENT_URL}/login?error=google_auth_failed`);
+        }
       },
     ]
   : [googleUnavailable];
