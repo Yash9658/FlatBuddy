@@ -3,7 +3,7 @@ import { apiFetch } from "@/lib/api";
 import type { CityOverview } from "@/lib/types";
 import { featuredCities } from "@/data/mock";
 
-export function useCityOverview(slug: string | undefined) {
+export function useCityOverview(slug: string | undefined, token?: string | null) {
   const [city, setCity] = useState<CityOverview | null>(
     () => {
       const fallback = featuredCities.find((item) => item.slug === slug);
@@ -30,7 +30,7 @@ export function useCityOverview(slug: string | undefined) {
       }
 
       try {
-        const response = await apiFetch<CityOverview>(`/cities/${slug}`, { method: "GET" });
+        const response = await apiFetch<CityOverview>(`/cities/${slug}`, { method: "GET", token });
         if (!ignore) {
           setCity(response);
         }
@@ -50,7 +50,7 @@ export function useCityOverview(slug: string | undefined) {
     return () => {
       ignore = true;
     };
-  }, [slug]);
+  }, [slug, token]);
 
   return {
     city,

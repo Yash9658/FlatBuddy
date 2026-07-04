@@ -1,11 +1,13 @@
 import type { Request, Response } from "express";
 import { citySeeds } from "../data/cities.js";
+import { verifyAccessToken } from "../lib/jwt.js";
 import { prisma } from "../lib/prisma.js";
 import { publicPropertyOwnerSelect, publicTenantSelect } from "../lib/public-selects.js";
 import { hasPlanAccess } from "../lib/subscriptions.js";
 
-function activeSeekerWhere(cityId: string) {
+function activeSeekerWhere(cityId: string, excludeUserId?: string) {
   return {
+    id: excludeUserId ? { not: excludeUserId } : undefined,
     role: "TENANT" as const,
     isEmailVerified: true,
     isSuspended: false,
@@ -15,6 +17,20 @@ function activeSeekerWhere(cityId: string) {
       },
     },
   };
+}
+
+function getOptionalAuthUserId(req: Request) {
+  const authHeader = req.headers.authorization;
+
+  if (!authHeader?.startsWith("Bearer ")) {
+    return undefined;
+  }
+
+  try {
+    return verifyAccessToken(authHeader.slice("Bearer ".length)).sub;
+  } catch {
+    return undefined;
+  }
 }
 
 export async function listCities(_req: Request, res: Response) {
@@ -49,6 +65,7 @@ export async function listCities(_req: Request, res: Response) {
 
 export async function getCityOverview(req: Request, res: Response) {
   const slug = Array.isArray(req.params.slug) ? req.params.slug[0] : req.params.slug;
+  const currentUserId = getOptionalAuthUserId(req);
 
   const city = await prisma.city.findUnique({
     where: { slug },
@@ -86,7 +103,7 @@ export async function getCityOverview(req: Request, res: Response) {
 
   const [seekers, activeSeekersCount, properties] = await Promise.all([
     prisma.user.findMany({
-      where: activeSeekerWhere(city.id),
+      where: activeSeekerWhere(city.id, currentUserId),
       select: publicTenantSelect,
       take: 6,
       orderBy: {
@@ -94,7 +111,7 @@ export async function getCityOverview(req: Request, res: Response) {
       },
     }),
     prisma.user.count({
-      where: activeSeekerWhere(city.id),
+      where: activeSeekerWhere(city.id, currentUserId),
     }),
     prisma.property.findMany({
       take: 6,

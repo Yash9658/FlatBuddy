@@ -10,8 +10,8 @@ import { resolveAssetUrl } from "@/lib/constants";
 
 export function CityPage() {
   const { slug } = useParams();
-  const { user } = useAuth();
-  const { city, error, isLoading } = useCityOverview(slug);
+  const { accessToken, user } = useAuth();
+  const { city, error, isLoading } = useCityOverview(slug, accessToken);
 
   if (!city && !isLoading) {
     return (
