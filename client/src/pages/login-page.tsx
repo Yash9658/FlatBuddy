@@ -13,6 +13,7 @@ export function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isGoogleSubmitting, setIsGoogleSubmitting] = useState(false);
   const oauthError = searchParams.get("error");
   const oauthErrorMessage =
     oauthError === "google_auth_failed" ? "Google sign-in failed. Please try again." : null;
@@ -58,11 +59,15 @@ export function LoginPage() {
             </Button>
           </form>
           <Button
-            onClick={() => (window.location.href = getOAuthUrl())}
+            onClick={() => {
+              clearError();
+              setIsGoogleSubmitting(true);
+              window.location.href = getOAuthUrl();
+            }}
             variant="outline"
-            disabled={isLoading || !isGoogleOAuthEnabled}
+            disabled={isLoading || isGoogleSubmitting || !isGoogleOAuthEnabled}
           >
-            {isLoading ? "Checking Google sign-in..." : "Continue with Google"}
+            {isLoading || isGoogleSubmitting ? "Starting Google sign-in..." : "Continue with Google"}
           </Button>
           {!isLoading && !isGoogleOAuthEnabled ? (
             <p className="text-sm text-muted-foreground">

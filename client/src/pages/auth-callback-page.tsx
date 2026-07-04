@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,15 +10,17 @@ export function AuthCallbackPage() {
   const navigate = useNavigate();
   const { clearError, completeOAuth } = useAuth();
   const error = searchParams.get("error");
+  const hasHandledCallback = useRef(false);
 
   useEffect(() => {
     clearError();
     let timeout = 0;
 
     async function finishOAuth() {
-      if (error) {
+      if (error || hasHandledCallback.current) {
         return;
       }
+      hasHandledCallback.current = true;
 
       try {
         const hashParams = new URLSearchParams(window.location.hash.slice(1));
