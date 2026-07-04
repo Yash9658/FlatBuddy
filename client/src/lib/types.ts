@@ -26,6 +26,7 @@ export type City = {
   description?: string;
   imageUrl?: string;
   isFeatured?: boolean;
+  activeSeekersCount?: number;
   areas?: {
     name: string;
     averageRent?: number;

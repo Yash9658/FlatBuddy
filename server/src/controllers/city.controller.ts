@@ -4,6 +4,19 @@ import { prisma } from "../lib/prisma.js";
 import { publicPropertyOwnerSelect, publicTenantSelect } from "../lib/public-selects.js";
 import { hasPlanAccess } from "../lib/subscriptions.js";
 
+function activeSeekerWhere(cityId: string) {
+  return {
+    role: "TENANT" as const,
+    isEmailVerified: true,
+    isSuspended: false,
+    profile: {
+      is: {
+        targetCityId: cityId,
+      },
+    },
+  };
+}
+
 export async function listCities(_req: Request, res: Response) {
   const dbCities = await prisma.city.findMany({
     include: {
@@ -19,7 +32,16 @@ export async function listCities(_req: Request, res: Response) {
   });
 
   if (dbCities.length > 0) {
-    return res.json(dbCities);
+    const citiesWithActiveSeekers = await Promise.all(
+      dbCities.map(async (city) => ({
+        ...city,
+        activeSeekersCount: await prisma.user.count({
+          where: activeSeekerWhere(city.id),
+        }),
+      })),
+    );
+
+    return res.json(citiesWithActiveSeekers);
   }
 
   return res.json(citySeeds);
@@ -56,28 +78,23 @@ export async function getCityOverview(req: Request, res: Response) {
         properties: 0,
         groups: 0,
       },
+      activeSeekersCount: 0,
       seekers: [],
       properties: [],
     });
   }
 
-  const [seekers, properties] = await Promise.all([
+  const [seekers, activeSeekersCount, properties] = await Promise.all([
     prisma.user.findMany({
-      where: {
-        role: "TENANT",
-        isEmailVerified: true,
-        isSuspended: false,
-        profile: {
-          is: {
-            targetCityId: city.id,
-          },
-        },
-      },
+      where: activeSeekerWhere(city.id),
       select: publicTenantSelect,
       take: 6,
       orderBy: {
         createdAt: "desc",
       },
+    }),
+    prisma.user.count({
+      where: activeSeekerWhere(city.id),
     }),
     prisma.property.findMany({
       take: 6,
@@ -103,6 +120,7 @@ export async function getCityOverview(req: Request, res: Response) {
 
   return res.json({
     ...city,
+    activeSeekersCount,
     seekers,
     properties: properties
       .map((property) => ({

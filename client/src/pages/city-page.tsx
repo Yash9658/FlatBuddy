@@ -57,7 +57,7 @@ export function CityPage() {
           {
             icon: UsersRound,
             label: "Active seekers",
-            value: String(city?._count?.profiles ?? activeSeekers.length),
+            value: String(city?.activeSeekersCount ?? activeSeekers.length),
           },
           {
             icon: Building2,

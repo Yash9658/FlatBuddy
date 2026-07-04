@@ -65,7 +65,7 @@ export function DiscoverPage() {
               </CardHeader>
               <CardContent className="flex flex-col gap-4">
                 <div className="flex gap-2">
-                  <Badge>{city._count?.profiles} seekers</Badge>
+                  <Badge>{city.activeSeekersCount ?? city._count?.profiles ?? 0} seekers</Badge>
                   <Badge variant="outline">{city._count?.properties} listings</Badge>
                 </div>
                 <div className="flex flex-wrap gap-2">
