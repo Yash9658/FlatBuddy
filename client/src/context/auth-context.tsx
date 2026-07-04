@@ -217,7 +217,11 @@ export function AuthProvider({ children }: PropsWithChildren) {
           setError(null);
           return response.user;
         } catch (authError) {
-          setError(authError instanceof Error ? authError.message : "Unable to complete sign-in.");
+          if (isExpectedLoggedOutError(authError)) {
+            setError(null);
+          } else {
+            setError(authError instanceof Error ? authError.message : "Unable to complete sign-in.");
+          }
           throw authError;
         }
       },

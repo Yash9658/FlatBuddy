@@ -52,7 +52,7 @@ export function LoginPage() {
                 required
               />
             </label>
-            {error || oauthErrorMessage ? <p className="text-sm text-red-600">{error ?? oauthErrorMessage}</p> : null}
+            {oauthErrorMessage || error ? <p className="text-sm text-red-600">{oauthErrorMessage ?? error}</p> : null}
             <Button disabled={isSubmitting} type="submit">
               {isSubmitting ? "Signing in..." : "Login"}
             </Button>
