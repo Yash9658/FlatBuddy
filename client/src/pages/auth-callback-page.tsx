@@ -21,7 +21,9 @@ export function AuthCallbackPage() {
       }
 
       try {
-        const currentUser = await completeOAuth();
+        const hashParams = new URLSearchParams(window.location.hash.slice(1));
+        const redirectAccessToken = hashParams.get("access_token") ?? undefined;
+        const currentUser = await completeOAuth(redirectAccessToken);
         timeout = window.setTimeout(() => {
           navigate(getPostAuthRoute(currentUser), { replace: true });
         }, 1200);

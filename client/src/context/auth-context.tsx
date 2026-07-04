@@ -27,7 +27,7 @@ type AuthContextValue = {
   login: (email: string, password: string) => Promise<AuthUser>;
   register: (payload: RegisterPayload) => Promise<{ message: string; email: string }>;
   logout: () => Promise<void>;
-  completeOAuth: () => Promise<AuthUser>;
+  completeOAuth: (redirectAccessToken?: string) => Promise<AuthUser>;
   updateRoleSelection: (role: UserRole) => Promise<AuthUser>;
   refreshUser: () => Promise<void>;
   getOAuthUrl: (role?: UserRole) => string;
@@ -206,8 +206,16 @@ export function AuthProvider({ children }: PropsWithChildren) {
           throw authError;
         }
       },
-      completeOAuth: async () => {
+      completeOAuth: async (redirectAccessToken) => {
         try {
+          if (redirectAccessToken) {
+            setAccessToken(redirectAccessToken);
+            const currentUser = await loadCurrentUser(redirectAccessToken);
+            setUser(currentUser);
+            setError(null);
+            return currentUser;
+          }
+
           const response = await apiFetch<{ accessToken: string; user: AuthUser }>("/auth/refresh", {
             method: "POST",
             skipAuthRefresh: true,

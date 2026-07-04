@@ -427,11 +427,13 @@ export const googleCallback: RequestHandler[] = googleOAuthConfigured
       }),
       async (req: Request, res: Response) => {
         const passportUser = req.user as { id: string; role: UserRole; email: string };
-        const { refreshToken } = buildAuthResponse(passportUser);
+        const { accessToken, refreshToken } = buildAuthResponse(passportUser);
         await withPrismaReconnectRetry(() => persistRefreshToken(passportUser.id, refreshToken));
         res.cookie(refreshCookieName, refreshToken, getRefreshCookieOptions());
         res.clearCookie(googleRoleCookieName, googleCookieOptions);
-        return res.redirect(`${env.CLIENT_URL}/auth/callback`);
+        const callbackUrl = new URL("/auth/callback", env.CLIENT_URL);
+        callbackUrl.hash = new URLSearchParams({ access_token: accessToken }).toString();
+        return res.redirect(callbackUrl.toString());
       },
     ]
   : [googleUnavailable];
