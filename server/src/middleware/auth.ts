@@ -2,6 +2,7 @@ import type { NextFunction, Request, Response } from "express";
 import { UserRole } from "@prisma/client";
 import { verifyAccessToken } from "../lib/jwt.js";
 import { prisma } from "../lib/prisma.js";
+import { withPrismaReconnectRetry } from "../lib/prisma-retry.js";
 
 export async function requireAuth(req: Request, res: Response, next: NextFunction) {
   const authHeader = req.headers.authorization;
@@ -14,15 +15,17 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
 
   try {
     const payload = verifyAccessToken(token);
-    const user = await prisma.user.findUnique({
-      where: { id: payload.sub },
-      select: {
-        id: true,
-        role: true,
-        isSuspended: true,
-        suspensionReason: true,
-      },
-    });
+    const user = await withPrismaReconnectRetry(() =>
+      prisma.user.findUnique({
+        where: { id: payload.sub },
+        select: {
+          id: true,
+          role: true,
+          isSuspended: true,
+          suspensionReason: true,
+        },
+      }),
+    );
 
     if (!user) {
       return res.status(401).json({ message: "User account was not found." });

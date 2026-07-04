@@ -94,30 +94,32 @@ function buildSuspendedMessage(reason?: string | null) {
 }
 
 async function syncProfileCompletionIfNeeded(userId: string) {
-  const currentUser = await prisma.user.findUnique({
-    where: { id: userId },
-    select: authUserSelect,
-  });
-
-  if (!currentUser) {
-    return null;
-  }
-
-  const computedCompletion = computeProfileCompletion(
-    currentUser.role,
-    currentUser.profile,
-    currentUser.preference,
-  );
-
-  if (currentUser.isProfileComplete !== computedCompletion) {
-    return prisma.user.update({
+  return withPrismaReconnectRetry(async () => {
+    const currentUser = await prisma.user.findUnique({
       where: { id: userId },
-      data: { isProfileComplete: computedCompletion },
       select: authUserSelect,
     });
-  }
 
-  return currentUser;
+    if (!currentUser) {
+      return null;
+    }
+
+    const computedCompletion = computeProfileCompletion(
+      currentUser.role,
+      currentUser.profile,
+      currentUser.preference,
+    );
+
+    if (currentUser.isProfileComplete !== computedCompletion) {
+      return prisma.user.update({
+        where: { id: userId },
+        data: { isProfileComplete: computedCompletion },
+        select: authUserSelect,
+      });
+    }
+
+    return currentUser;
+  });
 }
 
 async function queueVerificationForUser(user: { id: string; email: string }) {
