@@ -12,6 +12,7 @@ import { hashToken, signAccessToken, signRefreshToken, verifyRefreshToken } from
 import { isGoogleOAuthConfigured } from "../lib/google-oauth.js";
 import { computeProfileCompletion } from "../lib/profile-completion.js";
 import { prisma } from "../lib/prisma.js";
+import { withPrismaReconnectRetry } from "../lib/prisma-retry.js";
 
 const registerSchema = z.object({
   fullName: z.string().min(2),
@@ -427,7 +428,7 @@ export const googleCallback: RequestHandler[] = googleOAuthConfigured
       async (req: Request, res: Response) => {
         const passportUser = req.user as { id: string; role: UserRole; email: string };
         const { refreshToken } = buildAuthResponse(passportUser);
-        await persistRefreshToken(passportUser.id, refreshToken);
+        await withPrismaReconnectRetry(() => persistRefreshToken(passportUser.id, refreshToken));
         res.cookie(refreshCookieName, refreshToken, getRefreshCookieOptions());
         res.clearCookie(googleRoleCookieName, googleCookieOptions);
         return res.redirect(`${env.CLIENT_URL}/auth/callback`);
