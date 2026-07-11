@@ -5,6 +5,7 @@ import type { Profile as GoogleProfile, VerifyCallback } from "passport-google-o
 import { Strategy as GoogleStrategy } from "passport-google-oauth20";
 import { env } from "../config/env.js";
 import { isGoogleOAuthConfigured } from "../lib/google-oauth.js";
+import { parseGoogleOAuthState } from "../lib/google-state.js";
 import { prisma } from "../lib/prisma.js";
 import { withPrismaReconnectRetry } from "../lib/prisma-retry.js";
 
@@ -35,7 +36,7 @@ export function configureGooglePassport() {
             return done(new Error("Google account did not provide an email address."));
           }
 
-          const requestedRole = parseGoogleRole(req.cookies.flatbuddy_google_role);
+          const requestedRole = parseGoogleOAuthState(req.query.state)?.role ?? UserRole.TENANT;
 
           const googleUser = await withPrismaReconnectRetry(async () => {
             const existingUser =
@@ -101,10 +102,3 @@ export function configureGooglePassport() {
   );
 }
 
-function parseGoogleRole(state: unknown) {
-  if (typeof state !== "string") {
-    return UserRole.TENANT;
-  }
-
-  return state === UserRole.LANDLORD ? UserRole.LANDLORD : UserRole.TENANT;
-}

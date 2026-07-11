@@ -16,7 +16,11 @@ export function LoginPage() {
   const [isGoogleSubmitting, setIsGoogleSubmitting] = useState(false);
   const oauthError = searchParams.get("error");
   const oauthErrorMessage =
-    oauthError === "google_auth_failed" ? "Google sign-in failed. Please try again." : null;
+    oauthError === "google_auth_failed"
+      ? "Google sign-in failed. Please try again."
+      : oauthError === "google_state_invalid"
+        ? "Google sign-in expired. Please start again."
+        : null;
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
