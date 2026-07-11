@@ -34,7 +34,7 @@ const smokingOptions: SmokingPreference[] = ["NO", "OCCASIONAL", "YES", "FLEXIBL
 const drinkingOptions: DrinkingPreference[] = ["NO", "OCCASIONAL", "YES", "FLEXIBLE"];
 
 export function ProfilePage() {
-  const { user, accessToken, refreshUser } = useAuth();
+  const { user, accessToken, isLoading, refreshUser } = useAuth();
   const { cities, error: citiesError, isLoading: citiesLoading } = useCities({ allowFallback: false });
   const isAdminView = user?.role === "ADMIN";
   const isLandlordView = user?.role === "LANDLORD";
@@ -104,7 +104,7 @@ export function ProfilePage() {
     setInterests(nextPreference.interests);
   }, [user]);
 
-  if (!user || !accessToken) {
+  if (!user) {
     return (
       <Card>
         <CardHeader>
@@ -118,6 +118,17 @@ export function ProfilePage() {
             Login / Signup
           </Link>
         </CardContent>
+      </Card>
+    );
+  }
+
+  if (isLoading || !accessToken) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Restoring your FlatBuddy session</CardTitle>
+          <CardDescription>One moment while we reconnect your profile securely.</CardDescription>
+        </CardHeader>
       </Card>
     );
   }
