@@ -1,172 +1,186 @@
 # FlatBuddy
 
-FlatBuddy is a full-stack tenant partner finder for students and working professionals moving to a new city. The platform helps people choose a city, discover compatible flatmates, browse properties, connect with landlords, coordinate visits, and form rental groups together.
+FlatBuddy is a full-stack rental discovery platform that combines four workflows in one product:
 
-## Stack
+- city discovery
+- tenant compatibility matching
+- landlord property listings
+- group planning, chat, visits, and notifications
 
-- `client`: React + Vite + TypeScript + Tailwind CSS
-- `server`: Express + TypeScript + Prisma + PostgreSQL
-- Auth: access token + refresh token + Google OAuth
-- Realtime: Socket.io
-- Billing: Stripe subscriptions
+It is built as a marketplace-style application rather than a basic CRUD demo. Tenants can discover cities, compare listings, connect with compatible renters, form groups, shortlist properties, and coordinate visits. Landlords can verify themselves, publish listings, manage visit requests, and upgrade for premium visibility. Admins can moderate reports, review landlord verification requests, and manage platform safety.
 
 ## Core Product Areas
 
-- City-first discovery
-- Tenant partner matching by budget, lifestyle, and interests
-- Property listings and landlord onboarding
-- Realtime chat, requests, and notifications
-- Admin moderation and landlord verification
-- Premium tenant and landlord plans
+- **Tenant flow**: register, verify email, choose tenant role, complete renter profile, save preferences, view matches, connect with renters, chat, save listings, create groups, and request visits.
+- **Landlord flow**: choose landlord role, complete landlord profile, request verification, create listings, upload images, review analytics, and manage visit approvals.
+- **Admin flow**: review reports, moderate listings, suspend users, and approve or reject landlord verification requests.
+- **Billing flow**: Stripe Checkout and Billing Portal support Tenant Pro and Landlord Pro subscriptions.
+
+## Tech Stack
+
+- **Frontend**: React, TypeScript, Vite, Tailwind CSS
+- **Backend**: Node.js, Express, TypeScript
+- **Database**: PostgreSQL with Prisma ORM
+- **Auth**: local email/password, refresh-token sessions, Google OAuth
+- **Realtime**: Socket.IO
+- **Payments**: Stripe subscriptions
+- **Media**: Cloudinary uploads
+- **Deployment**: Vercel frontend, Render backend, Neon Postgres
+
+## Repository Structure
+
+```text
+client/   React frontend
+server/   Express API, Prisma schema, seeds, business logic
+```
+
+Detailed breakdowns:
+
+- [Architecture](./architecture.md)
+- [API Spec](./api-spec.md)
+- [Database Schema](./database-schema.md)
+- [Deployment](./deployment.md)
+- [Operations](./operations.md)
+- [Sitemap](./sitemap.md)
 
 ## Local Development
 
-1. Install dependencies:
+### 1. Install dependencies
 
 ```bash
 npm install
 ```
 
-2. Create env files:
+### 2. Configure environment files
 
-- `server/.env`
+Create:
+
 - `client/.env`
+- `server/.env`
 
-3. Generate Prisma client and run database setup:
+Use the examples in:
+
+- `client/.env.example`
+- `server/.env.example`
+
+### 3. Run database migrations
 
 ```bash
-npm run db:generate
 npm run db:migrate
+```
+
+This runs Prisma migrations against the database configured in `server/.env`.
+
+### 4. Seed the database
+
+```bash
 npm run db:seed
 ```
 
-4. Start both apps in separate terminals:
+Demo data is only created if `SEED_DEMO_DATA=true`.
+
+### 5. Start both apps
 
 ```bash
-npm run dev:server
-npm run dev:client
+npm run dev
 ```
 
-## Important Env Values
+Typical local URLs:
 
-### Server
+- frontend: `http://localhost:5173`
+- backend: `http://localhost:4000`
 
-- `DATABASE_URL`
-- `CLIENT_URL`
-- `CORS_ORIGINS`
-- `JWT_ACCESS_SECRET`
-- `JWT_REFRESH_SECRET`
-- `COOKIE_SECURE`
-- `COOKIE_SAME_SITE`
-- `PUBLIC_SERVER_URL`
-- `CLOUDINARY_CLOUD_NAME`
-- `CLOUDINARY_API_KEY`
-- `CLOUDINARY_API_SECRET`
-- `CLOUDINARY_FOLDER`
-- `GOOGLE_CLIENT_ID`
-- `GOOGLE_CLIENT_SECRET`
-- `GOOGLE_CALLBACK_URL`
-- `STRIPE_SECRET_KEY`
-- `STRIPE_WEBHOOK_SECRET`
-- `STRIPE_PRICE_TENANT_PRO`
-- `STRIPE_PRICE_LANDLORD_PRO`
-- `STRIPE_BILLING_SUCCESS_URL`
-- `STRIPE_BILLING_CANCEL_URL`
-- `STRIPE_PORTAL_RETURN_URL`
+## Main Backend Endpoints
 
-### Client
+Examples:
 
-- `VITE_API_URL`
-- `VITE_GOOGLE_MAPS_EMBED_KEY`
+- `/api/auth/*`
+- `/api/cities`
+- `/api/properties`
+- `/api/matches`
+- `/api/connections`
+- `/api/chats`
+- `/api/groups`
+- `/api/visits`
+- `/api/notifications`
+- `/api/billing`
+- `/api/admin`
 
-## Demo Data
+Full endpoint list: [api-spec.md](./api-spec.md)
 
-Demo users are only seeded when:
+## Authentication Model
 
-```env
-SEED_DEMO_DATA=true
-```
+FlatBuddy uses:
 
-If `SEED_DEMO_DATA=false`, city data still seeds, but sample accounts are skipped.
+- access token in frontend memory
+- refresh token in secure HTTP-only cookie
+- optional Google OAuth sign-in
+- role-based access control for tenant, landlord, and admin flows
 
-Preview marketplace activity is separate and optional:
+After login, routing depends on:
 
-```env
-SEED_PREVIEW_ACTIVITY=true
-```
+- selected role
+- profile completion state
+- admin status
 
-That mode enriches existing tenant accounts with:
+## Business Rules Implemented
 
-- sample partner matches
-- inbox requests and unread chats
-- saved users and properties
-- groups and shortlisted homes
-- visit activity and notifications
+- tenants and landlords have separate setup flows
+- landlord listing creation requires approved verification
+- free tenants have a pending connection limit
+- free landlords have a live listing limit
+- plan purchase is restricted by account role
+- tenant and landlord profile completion are recalculated on the backend
+- move-in dates cannot be in the past
+- tenant budgets must satisfy `min <= max`
+- group invitations are distinct from actual group membership
 
-This is useful for local demos and staging, and should usually stay `false` in production.
+## Realtime Behavior
 
-## Admin Access
+Socket.IO is used for:
 
-Admin signup is intentionally blocked.
+- new chat messages
+- connection status changes
+- chat list refresh
+- notification-related refresh behavior
 
-Use one of these:
+## Stripe Billing
 
-- promote an existing user to `ADMIN` in Prisma Studio
-- enable demo data and reseed the sample admin account
+Supported plans:
 
-Open Prisma Studio with:
+- `TENANT_PRO`
+- `LANDLORD_PRO`
 
-```bash
-cd server
-npx prisma studio
-```
+Billing includes:
 
-## Pre-Deployment Notes
+- checkout session creation
+- customer portal session creation
+- webhook-based subscription sync
+- cancellation at period end
 
-- Set production cookie settings correctly:
-  - `COOKIE_SECURE=true`
-  - `COOKIE_SAME_SITE=none` when frontend and backend are on different domains
-- Configure Cloudinary so uploaded listing images persist across backend restarts and deployments
-- Update `GOOGLE_CALLBACK_URL` to your deployed backend URL
-- Update Stripe success, cancel, and portal return URLs for production
-- Run Prisma migrations against the hosted database before first launch
-- Configure the Stripe webhook endpoint on the deployed backend
+## File Uploads
 
-## Frontend Deployment
+Landlord listing images are uploaded through the backend and stored in Cloudinary. The upload endpoint validates:
 
-The client includes `client/vercel.json` so SPA routes rewrite back to `index.html` on Vercel.
+- file presence
+- image MIME/magic bytes
+- size limits
 
-If you use a different host, make sure deep links such as:
+## Production Notes
 
-- `/discover/pune`
-- `/properties/:id`
-- `/groups/:id`
-- `/partners/:id`
+- frontend is configured as an SPA with Vercel rewrite support
+- backend expects correct `CLIENT_URL`, `CORS_ORIGINS`, cookie, Google OAuth, and Stripe env configuration
+- production refresh cookies require secure cross-site settings
 
-all rewrite to the frontend entry file.
+See [deployment.md](./deployment.md) for the full deployment checklist.
 
-## Suggested Hosting Split
+## Recommended Reading Order
 
-- Frontend: Vercel or Netlify
-- Backend: Render or Railway
-- Database: Neon, Supabase Postgres, or Railway Postgres
+If you want to understand the project fully:
 
-## Verification Before Shipping
-
-Run:
-
-```bash
-npm run lint
-npm run build
-```
-
-Then manually verify:
-
-- email signup and login
-- Google OAuth login
-- refresh-token session restore
-- partner requests and inbox
-- landlord listing creation
-- notifications
-- Stripe pricing flow
-- admin access and moderation
+1. [architecture.md](./architecture.md)
+2. [database-schema.md](./database-schema.md)
+3. [api-spec.md](./api-spec.md)
+4. [sitemap.md](./sitemap.md)
+5. [deployment.md](./deployment.md)
+6. [operations.md](./operations.md)
